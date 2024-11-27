@@ -1,0 +1,10 @@
+[package]
+name = "dstack-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = {workspace=true}
+warp = "0.3.7"
+serde = {workspace=true}
+async-trait = {workspace=true}

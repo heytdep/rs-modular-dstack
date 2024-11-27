@@ -1,0 +1,15 @@
+[workspace]
+
+members = [
+    "dstack-core", 
+    "examples/ping-host", 
+    "new-york"
+]
+
+
+[workspace.dependencies]
+dstack-core = {path="./dstack-core"}
+anyhow = "1.0.93"
+async-trait = "0.1.83"
+serde = {version = "1", features=["derive"]}
+reqwest = {version = "0.12.9", features=["json"]}

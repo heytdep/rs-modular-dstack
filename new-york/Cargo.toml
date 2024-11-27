@@ -1,0 +1,24 @@
+[package]
+name = "new-york"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dstack-core = {workspace=true}
+anyhow = {workspace=true}
+hex = "0.4"
+async-trait = {workspace=true}
+serde_json = "1"
+stellar-strkey = "0.0.8"
+x25519-dalek = {version="2.0.1", features=["getrandom"]}
+ed25519-dalek = "2.1.1"
+aes-gcm = "0.10.3"
+stellar-xdr = { version = "=22.0.0-rc.1.1", default-features = false, features = [
+    "curr",
+    "serde",
+    "base64",
+] }
+sha2 = "0.10.8"
+serde = {workspace=true}
+reqwest = {workspace=true}
+urlencoding = "2.1.3"
