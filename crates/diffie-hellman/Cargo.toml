@@ -1,0 +1,11 @@
+[package]
+name = "diffie-hellman"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base64 = {workspace=true}
+dstack-core = {workspace=true}
+anyhow = {workspace=true}
+x25519-dalek = {workspace=true}
+aes-gcm = {workspace=true}

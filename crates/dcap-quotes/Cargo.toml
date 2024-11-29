@@ -1,0 +1,8 @@
+[package]
+name = "dcap-quotes"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base64={workspace=true}
+serde={workspace=true}

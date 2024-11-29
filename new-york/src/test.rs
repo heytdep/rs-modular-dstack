@@ -1,8 +1,7 @@
 use base64::prelude::*;
+use dcap_quotes::QuoteVerificationResult;
 use reqwest::Client;
 use sha2::{Digest, Sha256};
-
-use crate::quote::QuoteVerificationResult;
 
 #[tokio::test]
 async fn dummy_get_quote_verify_test() {

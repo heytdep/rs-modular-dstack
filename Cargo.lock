@@ -352,6 +352,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 
 [[package]]
+name = "dcap-quotes"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "serde",
+]
+
+[[package]]
 name = "der"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -369,6 +377,17 @@ checksum = "b42b6fa04a440b495c8b04d0e71b707c585f83cb9cb28cf8cd0d976c315e31b4"
 dependencies = [
  "powerfmt",
  "serde",
+]
+
+[[package]]
+name = "diffie-hellman"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "base64 0.22.1",
+ "dstack-core",
+ "x25519-dalek",
 ]
 
 [[package]]
@@ -402,6 +421,19 @@ dependencies = [
  "serde",
  "serde_json",
  "warp",
+]
+
+[[package]]
+name = "dummy-attestation"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "dcap-quotes",
+ "dstack-core",
+ "hex",
+ "reqwest",
+ "sha2",
 ]
 
 [[package]]
@@ -1174,7 +1206,10 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "blake2",
+ "dcap-quotes",
+ "diffie-hellman",
  "dstack-core",
+ "dummy-attestation",
  "ed25519-dalek",
  "hex",
  "reqwest",

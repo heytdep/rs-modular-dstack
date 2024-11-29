@@ -1,6 +1,6 @@
 [workspace]
 
-members = [
+members = [ "crates/dcap-quotes", "crates/diffie-hellman", "crates/dummy-attestation",
     "dstack-core", 
     "examples/ping-host", 
     "new-york"
@@ -9,7 +9,16 @@ members = [
 
 [workspace.dependencies]
 dstack-core = {path="./dstack-core"}
+dcap-quotes = {path="./crates/dcap-quotes"}
+dummy-attestation = {path="./crates/dummy-attestation"}
+diffie-hellman = {path="./crates/diffie-hellman"}
 anyhow = "1.0.93"
 async-trait = "0.1.83"
 serde = {version = "1", features=["derive"]}
 reqwest = {version = "0.12.9", features=["json"]}
+hex = "0.4"
+serde_json = "1"
+base64 = "0.22.1"
+sha2 = "0.10.8"
+aes-gcm = "0.10.3"
+x25519-dalek = {version="2.0.1", features=["getrandom", "static_secrets"]}
