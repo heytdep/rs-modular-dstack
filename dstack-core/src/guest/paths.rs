@@ -1,6 +1,6 @@
+use super::GuestServiceInner;
 use std::sync::Arc;
 use warp::{reject::Rejection, reply::WithStatus, Filter};
-use super::GuestServiceInner;
 
 pub(crate) fn with_impl<H>(
     guest_internal: Arc<H>,
@@ -15,18 +15,18 @@ pub struct GuestPaths<H: GuestServiceInner> {
     pub inner_guest: Arc<H>,
 }
 
-mod requests {
-    use serde::Deserialize;
+pub mod requests {
+    use serde::{Deserialize, Serialize};
 
     use super::super::GuestServiceInner;
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Serialize)]
     pub struct OnboardArgs<H: GuestServiceInner> {
         pub quote: H::Quote,
         pub pubkeys: Vec<H::Pubkey>,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Serialize)]
     pub struct GetKeyArgs<H: GuestServiceInner> {
         pub tag: H::Tag,
     }
@@ -50,7 +50,10 @@ impl<H: GuestServiceInner + Send + Sync> GuestPaths<H> {
             .and(with_impl(self.inner_guest.clone()))
             .and_then(
                 |request: requests::OnboardArgs<H>, guest_impl: Arc<H>| async move {
-                    match guest_impl.onboard_new_node(request.quote, request.pubkeys).await {
+                    match guest_impl
+                        .onboard_new_node(request.quote, request.pubkeys)
+                        .await
+                    {
                         Ok(_) => {
                             return Ok::<WithStatus<String>, Rejection>(warp::reply::with_status(
                                 "success".into(),
@@ -87,7 +90,10 @@ impl<H: GuestServiceInner + Send + Sync> GuestPaths<H> {
                         }
                         Err(e) => {
                             return Ok(warp::reply::with_status(
-                                format!("error while getting derived key in inner guest impl {:?}", e),
+                                format!(
+                                    "error while getting derived key in inner guest impl {:?}",
+                                    e
+                                ),
                                 warp::http::StatusCode::INTERNAL_SERVER_ERROR,
                             ))
                         }

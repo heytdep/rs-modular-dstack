@@ -1,8 +1,15 @@
 use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey, VerifyingKey};
-use stellar_xdr::curr::{DecoratedSignature, Hash, Limits, Signature, SignatureHint, Transaction, TransactionEnvelope, TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction, TransactionV1Envelope, WriteXdr};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
+use stellar_xdr::curr::{
+    DecoratedSignature, Hash, Limits, Signature, SignatureHint, Transaction, TransactionEnvelope,
+    TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
+    TransactionV1Envelope, WriteXdr,
+};
 
-pub fn hash_transaction(tx: &Transaction, network_passphrase: &str) -> Result<[u8; 32], stellar_xdr::curr::Error> {
+pub fn hash_transaction(
+    tx: &Transaction,
+    network_passphrase: &str,
+) -> Result<[u8; 32], stellar_xdr::curr::Error> {
     let signature_payload = TransactionSignaturePayload {
         network_id: Hash(Sha256::digest(network_passphrase).into()),
         tagged_transaction: TransactionSignaturePayloadTaggedTransaction::Tx(tx.clone()),
@@ -17,7 +24,10 @@ pub fn ed25519_sign(secret_key: &str, payload: &[u8]) -> (VerifyingKey, [u8; 64]
             .0,
     );
 
-    (signing.verifying_key(), signing.sign(payload).to_bytes().try_into().unwrap())
+    (
+        signing.verifying_key(),
+        signing.sign(payload).to_bytes().try_into().unwrap(),
+    )
 }
 
 pub fn sign_transaction(tx: Transaction, network_passphrase: &str, secret_key: &str) -> String {

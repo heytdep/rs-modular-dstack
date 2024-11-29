@@ -7,15 +7,15 @@
 //! while giving them power to shape the actual functionality.
 
 use async_trait::async_trait;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 
 pub mod paths;
 
 #[async_trait]
 pub trait HostServiceInner {
-    type Quote: DeserializeOwned + Send + Sync;
-    type Pubkey: DeserializeOwned + Send + Sync;
-    type Signature: DeserializeOwned + Send + Sync;
+    type Quote: DeserializeOwned + Serialize + Send + Sync;
+    type Pubkey: DeserializeOwned + Serialize + Send + Sync;
+    type Signature: DeserializeOwned + Serialize + Send + Sync;
 
     /// Performs the registering request.
     ///
@@ -43,5 +43,15 @@ pub trait HostServiceInner {
     /// [`self`] is for global state (e.g orchestrator contract id, secret key used to submit transactions, etc).
     /// [`quote`] is the "genesis" quote. No one has to check against this quote, but it shuold be audited from other nodes that intend
     /// to join before they actually join the quorum
-    async fn bootstrap(&self, quote: Self::Quote, pubkeys: Vec<Self::Pubkey>) -> anyhow::Result<()>;
+    async fn bootstrap(&self, quote: Self::Quote, pubkeys: Vec<Self::Pubkey>)
+        -> anyhow::Result<()>;
+
+    async fn onboard_thread(&self) -> anyhow::Result<()>;
+}
+
+#[async_trait]
+pub trait HostServiceInnerCryptoHelper: HostServiceInner {
+    type VerificationResult;
+
+    async fn verify_quote(&self, quote: Self::Quote) -> anyhow::Result<Self::VerificationResult>;
 }

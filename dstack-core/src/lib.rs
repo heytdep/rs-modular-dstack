@@ -1,6 +1,8 @@
-mod host;
+mod crypto;
 mod guest;
+mod host;
 mod types;
 
-pub use host::{paths as host_paths, HostServiceInner};
-pub use guest::{GuestServiceInner, TdxOnlyGuestServiceInner, GuestServiceInnerCryptoHelper, paths as guest_paths};
+pub use crypto::InnerCryptoHelper;
+pub use guest::{paths as guest_paths, GuestServiceInner, TdxOnlyGuestServiceInner};
+pub use host::{paths as host_paths, HostServiceInner, HostServiceInnerCryptoHelper};

@@ -1,6 +1,6 @@
+use super::HostServiceInner;
 use std::sync::Arc;
 use warp::{reject::Rejection, reply::WithStatus, Filter};
-use super::HostServiceInner;
 
 pub(crate) fn with_impl<H>(
     host_internal: Arc<H>,
@@ -15,18 +15,18 @@ pub struct HostPaths<H: HostServiceInner> {
     pub inner_host: Arc<H>,
 }
 
-mod requests {
-    use serde::Deserialize;
+pub mod requests {
+    use serde::{Deserialize, Serialize};
 
     use crate::HostServiceInner;
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Serialize)]
     pub struct BootstrapArgs<H: HostServiceInner> {
         pub quote: H::Quote,
         pub pubkeys: Vec<H::Pubkey>,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Serialize)]
     pub struct RegisterArgs<H: HostServiceInner> {
         pub quote: H::Quote,
         pub pubkeys: Vec<H::Pubkey>,
@@ -79,7 +79,10 @@ impl<H: HostServiceInner + Send + Sync> HostPaths<H> {
             .and(with_impl(self.inner_host.clone()))
             .and_then(
                 |request: requests::RegisterArgs<H>, host_impl: Arc<H>| async move {
-                    match host_impl.register(request.quote, request.pubkeys, request.signatures).await {
+                    match host_impl
+                        .register(request.quote, request.pubkeys, request.signatures)
+                        .await
+                    {
                         Ok(_) => {
                             return Ok::<WithStatus<String>, Rejection>(warp::reply::with_status(
                                 "success".into(),
