@@ -1,0 +1,24 @@
+name = "newyork"
+
+[[tables]]
+name = "pending"
+
+[[tables.columns]]
+name = "pubkey"
+col_type = "BYTEA"
+
+[[tables.columns]]
+name = "quote"
+col_type = "BYTEA"
+
+[[tables]]
+name = "onboard"
+
+[[tables.columns]]
+name = "pubkey"
+col_type = "BYTEA"
+
+[[tables.columns]]
+name = "encrypted"
+col_type = "BYTEA"
+

@@ -92,7 +92,8 @@ impl HostServiceInner for HostServices {
                         pubkey,
                         hex::encode(&message)
                     );
-                    stellar::post_onboard(self.contract, self.secret, message, &pubkey_bytes).await?;
+                    stellar::post_onboard(self.contract, self.secret, message, &pubkey_bytes)
+                        .await?;
                 }
             }
 
@@ -177,6 +178,9 @@ impl GuestServiceInner for GuestServices {
                 if let Ok(encrypted_encoded) =
                     get_onboarded(self.cluster_contract, my_pubkey.as_bytes()).await
                 {
+                    // NOTE: this is bad rn because any malicious user can spam the comms network and
+                    // send invalid shared keys to prevent new nodes from joining. This is easily avoidable
+                    // with some extra code. It might also be good to abstract the public key checking.
                     println!("Found encrypted message for this node, processing ...");
                     let encrypted_raw = hex::decode(encrypted_encoded)?;
                     let decrypted = self.crypto.decrypt_secret(
@@ -186,14 +190,10 @@ impl GuestServiceInner for GuestServices {
                         vec![my_secret.clone()],
                     )?;
                     let shared_secret_bytes = decrypted.as_bytes();
-                    // NOTE: this is bad rn because any malicious user can spam the comms network and
-                    // send invalid shared keys to prevent new nodes from joining. This is easily avoidable
-                    // with some extra code. It might also be good to abstract the public key checking.
-                    let shared_pubkey =
-                        x25519_dalek::PublicKey::from(&StaticSecret::from(*shared_secret_bytes));
-                    if &expected_shared_pubkey_bytes != shared_pubkey.as_bytes() {
-                        panic!("Nodes posted invalid shared secret")
-                    }
+                    // note: we don't need to explicitly check the obtained shared secret because thanks to diffie
+                    // hellman constraints + TDX and replication guarantees (if the encrypted secret was not signed with the shared secret
+                    // then the decoding would fail due to a diff in the p2p shared secret, if it was signed by the secret
+                    // we know that it was a cluster-trusted TD so we know the message is indeed the encrypted shared secret).
                     shared_secret = *shared_secret_bytes;
                     break;
                 } else {

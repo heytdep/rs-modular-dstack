@@ -1,9 +1,10 @@
 [workspace]
+resolver = "2"
 
 members = [ "crates/dcap-quotes", "crates/diffie-hellman", "crates/dummy-attestation",
     "dstack-core", 
     "examples/ping-host", 
-    "new-york"
+    "new-york", "contracts/stellar/simple-cluster", "services/stellar/zephyr"
 ]
 
 

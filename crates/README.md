@@ -16,14 +16,6 @@ async fn replicate_thread(&self) -> anyhow::Result<Self::SharedKey> {
         vec![my_secret.clone()],
     )?;
     let shared_secret_bytes = decrypted.as_bytes();
-    // NOTE: this is bad rn because any malicious user can spam the comms network and
-    // send invalid shared keys to prevent new nodes from joining. This is easily avoidable
-    // with some extra code. It might also be good to abstract the public key checking.
-    let shared_pubkey =
-        x25519_dalek::PublicKey::from(&StaticSecret::from(*shared_secret_bytes));
-    if &expected_shared_pubkey_bytes != shared_pubkey.as_bytes() {
-        panic!("Nodes posted invalid shared secret")
-    }
     // ...
 }
 ```

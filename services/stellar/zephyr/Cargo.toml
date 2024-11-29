@@ -1,0 +1,22 @@
+[package]
+name = "newyork"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zephyr-sdk = { version = "0.2.4", git="https://github.com/xycloo/rs-zephyr-toolkit", rev="5d26be0" }
+stellar-strkey = "0.0.8"
+serde = {version="1", features=["derive"]}
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true

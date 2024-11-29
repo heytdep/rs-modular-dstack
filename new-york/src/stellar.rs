@@ -8,6 +8,7 @@
 mod utils;
 
 use anyhow::anyhow;
+use ed25519_dalek::SigningKey;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -75,15 +76,23 @@ pub async fn post_bootstrap(
     quote: String,
     shared_pubkey: [u8; 32],
 ) -> anyhow::Result<()> {
+    let public = stellar_strkey::ed25519::PublicKey(
+        *SigningKey::from_bytes(&secret_key)
+            .verifying_key()
+            .as_bytes(),
+    )
+    .to_string();
     let args = format!(
         r#"{{
             \"cluster\": \"{}\",
             \"pubkey\": \"{}\",
-            \"quote\": \"{}\"
+            \"quote\": \"{}\",
+            \"source\": \"{}\"
         }}"#,
         stellar_strkey::Contract(cluster_contract).to_string(),
         hex::encode(shared_pubkey),
-        quote
+        quote,
+        public
     );
     post_to_zephyr(secret_key, "bootstrap", args).await
 }
@@ -96,15 +105,24 @@ pub async fn post_register(
     quote: String,
     node_pubkey: &[u8; 32],
 ) -> anyhow::Result<()> {
+    let public = stellar_strkey::ed25519::PublicKey(
+        *SigningKey::from_bytes(&secret_key)
+            .verifying_key()
+            .as_bytes(),
+    )
+    .to_string();
+
     let args = format!(
         r#"{{
             \"cluster\": \"{}\",
             \"quote\": \"{}\",
-            \"pubkey\": \"{}\"
+            \"pubkey\": \"{}\",
+            \"source\": \"{}\"
         }}"#,
         stellar_strkey::Contract(cluster_contract).to_string(),
         quote,
-        hex::encode(node_pubkey)
+        hex::encode(node_pubkey),
+        public
     );
     post_to_zephyr(secret_key, "register", args).await
 }
@@ -116,15 +134,23 @@ pub async fn post_onboard(
     encrypted_message: Vec<u8>,
     node_pubkey: &[u8; 32],
 ) -> anyhow::Result<()> {
+    let public = stellar_strkey::ed25519::PublicKey(
+        *SigningKey::from_bytes(&secret_key)
+            .verifying_key()
+            .as_bytes(),
+    )
+    .to_string();
     let args = format!(
         r#"{{
             \"cluster\": \"{}\",
             \"encrypted\": \"{}\",
-            \"pubkey\": \"{}\"
+            \"pubkey\": \"{}\",
+            \"source\": \"{}\",
         }}"#,
         stellar_strkey::Contract(cluster_contract).to_string(),
         hex::encode(encrypted_message),
-        hex::encode(node_pubkey)
+        hex::encode(node_pubkey),
+        public
     );
     post_to_zephyr(secret_key, "onboard", args).await
 }
