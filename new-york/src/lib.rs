@@ -66,7 +66,9 @@ impl HostServiceInner for HostServices {
     }
 
     async fn onboard_thread(&self) -> anyhow::Result<()> {
+        println!("Onboarding thread started");
         loop {
+            println!("Checking for new onboard requests ...");
             let current_pending = stellar::get_pending(self.contract).await?;
             for pending in current_pending {
                 let quote = pending.quote;
