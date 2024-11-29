@@ -1,3 +1,4 @@
+use base64::{prelude::BASE64_STANDARD, Engine};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -84,4 +85,14 @@ pub struct PckCertificateChainData {
     pub certificate_data_type: u8,
     pub size: u32,
     pub pck_cert_chain: String,
+}
+
+impl QuoteVerificationResult {
+    pub fn get_appdata(&self) -> [u8; 32] {
+        BASE64_STANDARD
+            .decode(&self.td_quote_body.report_data)
+            .unwrap()[0..32]
+            .try_into()
+            .unwrap()
+    }
 }

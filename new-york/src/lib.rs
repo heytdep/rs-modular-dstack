@@ -12,14 +12,13 @@ use aes_gcm::{Aes256Gcm, KeyInit};
 use anyhow::anyhow;
 use async_trait::async_trait;
 use dstack_core::{
-    guest_paths, host_paths, GuestServiceInner, HostServiceInner, InnerCryptoHelper,
-    TdxOnlyGuestServiceInner,
+    guest_paths, host_paths, GuestServiceInner, HostServiceInner, InnerAttestationHelper,
+    InnerCryptoHelper, TdxOnlyGuestServiceInner,
 };
 use quote::QuoteVerificationResult;
 use reqwest::Client;
 use sha2::digest::generic_array::GenericArray;
 use sha2::{Digest, Sha256};
-use std::env;
 use std::time::Duration;
 use stellar::get_onboarded;
 use tokio::time::sleep;
@@ -77,17 +76,26 @@ impl HostServiceInner for HostServices {
             for pending in current_pending {
                 let quote = pending.quote;
                 let pubkey = pending.pubkey;
+                let pubkey_bytes = hex::decode(&pubkey)?.try_into().unwrap();
 
                 // call tdx host-facing interface.
                 let client = reqwest::Client::new();
-                client
+                let resp = client
                     .post("http://localhost:3030/onboard")
                     .json(&guest_paths::requests::OnboardArgs::<GuestServices> {
                         quote,
-                        pubkeys: vec![hex::decode(pubkey)?.try_into().unwrap()],
+                        pubkeys: vec![pubkey_bytes],
                     })
                     .send()
                     .await?;
+                let message: <GuestServices as GuestServiceInner>::EncryptedMessage =
+                    resp.json().await?;
+                println!(
+                    "Onboarding {} with encrypted message {}",
+                    pubkey,
+                    hex::encode(&message)
+                );
+                stellar::post_onboard(self.contract, self.secret, message, &pubkey_bytes).await?;
             }
 
             sleep(Duration::from_secs(5)).await
@@ -97,6 +105,7 @@ impl HostServiceInner for HostServices {
 
 pub struct GuestServices {
     cluster_contract: [u8; 32],
+    shared_public: Option<[u8; 32]>,
     shared_secret: Option<[u8; 32]>,
 }
 
@@ -104,8 +113,13 @@ impl GuestServices {
     pub fn new(cluster_contract: [u8; 32]) -> Self {
         Self {
             cluster_contract,
+            shared_public: None,
             shared_secret: None,
         }
+    }
+
+    pub fn set_expected_public(&mut self, public: [u8; 32]) {
+        self.shared_public = Some(public)
     }
 
     pub fn set_secret(&mut self, secret: [u8; 32]) {
@@ -134,22 +148,13 @@ impl GuestServiceInner for GuestServices {
         println!("Replicating ...");
         let client = reqwest::Client::new();
 
-        let my_secret = StaticSecret::random();
-        let my_pubkey = x25519_dalek::PublicKey::from(&my_secret);
+        let (my_pubkey, my_secret) = self.get_keypair()?;
         let quote = self.get_quote(my_pubkey.as_bytes().to_vec()).await?;
         let mut shared_secret;
 
-        if let Ok(shared_pubkey) = env::var("PUBKEY") {
+        // Note: whether to bootstrap is operator inferred not chain-inferred.
+        if let Some(expected_shared_pubkey_bytes) = self.shared_public {
             // We need to register
-
-            let expected_shared_pubkey_bytes: [u8; 32] =
-                hex::decode(&shared_pubkey)?.try_into().unwrap();
-            let expected_shared_pubkey =
-                x25519_dalek::PublicKey::from(expected_shared_pubkey_bytes);
-            let p2p_secret = my_secret.diffie_hellman(&expected_shared_pubkey);
-
-            let key = aes_gcm::Key::<Aes256Gcm>::from_slice(p2p_secret.as_bytes());
-            let chiper = Aes256Gcm::new(key);
 
             let request_onboard = client
                 .post("http://localhost:8000/register")
@@ -163,23 +168,25 @@ impl GuestServiceInner for GuestServices {
                 .text()
                 .await?;
             println!("Got response {}", request_onboard);
-
             loop {
                 if let Ok(encrypted_encoded) =
                     get_onboarded(self.cluster_contract, my_pubkey.as_bytes()).await
                 {
+                    println!("Found encrypted message for this node, processing ...");
                     let encrypted_raw = hex::decode(encrypted_encoded)?;
-                    let decrypted = chiper
-                        .decrypt(GenericArray::from_slice(&NONCE), encrypted_raw.as_ref())
-                        .unwrap();
-                    let shared_secret_bytes: [u8; 32] = decrypted.try_into().unwrap();
-
-                    let shared_pubkey =
-                        x25519_dalek::PublicKey::from(&StaticSecret::from(shared_secret_bytes));
+                    let decrypted = self.decrypt_secret(
+                        NONCE,
+                        encrypted_raw,
+                        vec![expected_shared_pubkey_bytes.into()],
+                        vec![my_secret.clone()],
+                    )?;
+                    let shared_secret_bytes = decrypted.as_bytes();
 
                     // NOTE: this is bad rn because any malicious user can spam the comms network and
                     // send invalid shared keys to prevent new nodes from joining. This is easily avoidable
-                    // with some extra code.
+                    // with some extra code. It might also be good to abstract the public key checking.
+                    let shared_pubkey =
+                        x25519_dalek::PublicKey::from(&StaticSecret::from(*shared_secret_bytes));
                     if &expected_shared_pubkey_bytes != shared_pubkey.as_bytes() {
                         panic!("Nodes posted invalid shared secret")
                     }
@@ -208,22 +215,45 @@ impl GuestServiceInner for GuestServices {
                 request_bootstrap
             );
 
-            shared_secret = my_secret.as_bytes().clone();
+            shared_secret = my_secret.as_bytes();
         }
 
         println!("Got secret! {}", hex::encode(shared_secret));
-        Ok(shared_secret)
+        Ok(*shared_secret)
     }
 
+    /// Verifies the provided quote ensuring that [`pubkeys[0]`] is within the quote, if that
+    /// succeeds (i.e secretkey is held only in tdx) then it encrypts the shared secret to
+    /// [`pubkeys[0]`].
     async fn onboard_new_node(
         &self,
         quote: Self::Quote,
         pubkeys: Vec<Self::Pubkey>,
     ) -> anyhow::Result<Self::EncryptedMessage> {
-        Ok(vec![])
+        let verify = self.verify_quote(quote).await?;
+
+        let expected_appdata: [u8; 32] = {
+            let preimage = format!("register{}", hex::encode(pubkeys[0].to_vec()));
+            let mut hasher = Sha256::new();
+            hasher.update(preimage);
+            hasher.finalize().into()
+        };
+        let got_appdata = verify.get_appdata();
+
+        if expected_appdata != got_appdata {
+            return Err(anyhow!("").into());
+        }
+
+        let encrypted = self.encrypt_secret(
+            NONCE,
+            self.shared_secret.ok_or(anyhow!(""))?.into(),
+            pubkeys.iter().map(|p| (*p).into()).collect(),
+        )?;
+        Ok(encrypted)
     }
 }
 
+/// NON host-facing paths here.
 #[async_trait]
 impl TdxOnlyGuestServiceInner for GuestServices {
     type Tag = String;
@@ -242,11 +272,12 @@ impl TdxOnlyGuestServiceInner for GuestServices {
     }
 }
 
+/// Dummy attestation helpers. This should be moved to a default and either be derived or implemented
+/// in a wrapped object.
 #[async_trait]
-impl InnerCryptoHelper for GuestServices {
+impl InnerAttestationHelper for GuestServices {
     type Appdata = Vec<u8>;
     type Quote = String;
-    type Keypair = (x25519_dalek::PublicKey, StaticSecret);
     type VerificationResult = QuoteVerificationResult;
 
     async fn get_quote(&self, appdata: Self::Appdata) -> anyhow::Result<Self::Quote> {
@@ -285,72 +316,87 @@ impl InnerCryptoHelper for GuestServices {
 
         Ok(verification_resp.json().await?)
     }
+}
 
-    fn get_keypair(&self) -> anyhow::Result<Self::Keypair> {
+/// Cryptographic helpers for diffie-hellman secret sharing.
+/// This should be moved to a default and either be derived or implemented in a wrapped object.
+impl InnerCryptoHelper for GuestServices {
+    type Pubkey = x25519_dalek::PublicKey;
+    type Secret = x25519_dalek::StaticSecret;
+    type EncryptedMessage = Vec<u8>;
+
+    /// Generates a random keypair.
+    fn get_keypair(&self) -> anyhow::Result<(Self::Pubkey, Self::Secret)> {
         let secret = StaticSecret::random();
         let pubkey = x25519_dalek::PublicKey::from(&secret);
 
         Ok((pubkey, secret))
     }
+
+    /// Decrypts [`message: Self::EncryptedMessage`]:
+    /// 1. computes a shared secret (diffie hellman) between the provided public key (shared state pubkey) and secret key.
+    /// 2. builds an aes encryption key from that shared secret ensuring that we're
+    /// able to decrypt messages signed with the shared secret (note that
+    /// shared(S_b, P_a) = shared(S_a, P_b) where S is secret and P is pubkey).
+    /// 3. Decrypts the provided message using the provided nonce.
+    /// 4. Builds [`Self::Secret`] from the decryption result.
+    fn decrypt_secret<N: AsRef<[u8]>>(
+        &self,
+        nonce: N,
+        message: Self::EncryptedMessage,
+        pubkeys: Vec<Self::Pubkey>,
+        secrets: Vec<Self::Secret>,
+    ) -> anyhow::Result<Self::Secret> {
+        let expected_shared_pubkey_bytes = pubkeys[0].as_bytes();
+        let chiper = {
+            let expected_shared_pubkey =
+                x25519_dalek::PublicKey::from(*expected_shared_pubkey_bytes);
+            let p2p_secret = secrets[0].diffie_hellman(&expected_shared_pubkey);
+
+            let key = aes_gcm::Key::<Aes256Gcm>::from_slice(p2p_secret.as_bytes());
+            Aes256Gcm::new(key)
+        };
+        let decrypted = chiper
+            .decrypt(GenericArray::from_slice(nonce.as_ref()), message.as_ref())
+            .map_err(|e| anyhow!(e))?;
+        let shared_secret_bytes: [u8; 32] = decrypted.try_into().unwrap();
+
+        Ok(StaticSecret::from(shared_secret_bytes))
+    }
+
+    /// Encrypts [`secret: Self::Secret`]:
+    /// 1. computes a shared secret (diffie hellman) between the shared [`secret`]
+    /// and the provided public key.
+    /// 2. builds an aes encryption key from the shared secret ensuring that we're
+    /// able to encrypt messages signed with the shared secret (note that here holds the condition
+    /// shared(S_b, P_a) = shared(S_a, P_b) where S is secret and P is pubkey). Only the secret
+    /// of the TDX-generated (this condition holds thanks to quote verification) [`pubkeys[0]`]
+    /// will be able to compute a shared secret with the global shared pubkey.
+    /// 3. We encrypt [`secret`] itself using the previously built key and return the result.
+    fn encrypt_secret<N: AsRef<[u8]>>(
+        &self,
+        nonce: N,
+        secret: Self::Secret,
+        pubkeys: Vec<Self::Pubkey>,
+    ) -> anyhow::Result<Self::EncryptedMessage> {
+        let expected_shared_pubkey_bytes = pubkeys[0].as_bytes();
+        let chiper = {
+            let expected_shared_pubkey =
+                x25519_dalek::PublicKey::from(*expected_shared_pubkey_bytes);
+            let p2p_secret = secret.diffie_hellman(&expected_shared_pubkey);
+
+            let key = aes_gcm::Key::<Aes256Gcm>::from_slice(p2p_secret.as_bytes());
+            Aes256Gcm::new(key)
+        };
+        let encrypted = chiper
+            .encrypt(
+                GenericArray::from_slice(nonce.as_ref()),
+                secret.as_bytes().as_ref(),
+            )
+            .map_err(|e| anyhow!(e))?;
+        Ok(encrypted)
+    }
 }
 
 #[cfg(test)]
-mod test {
-    use base64::prelude::*;
-    use reqwest::Client;
-    use sha2::{Digest, Sha256};
-
-    use crate::quote::QuoteVerificationResult;
-
-    #[tokio::test]
-    async fn dummy_get_quote_verify_test() {
-        let preimage = format!(
-            "register{}",
-            hex::encode(x25519_dalek::PublicKey::from(
-                &x25519_dalek::StaticSecret::random()
-            ))
-        );
-
-        let mut hasher = Sha256::new();
-        hasher.update(preimage);
-        let hashed = hex::encode(hasher.finalize());
-
-        let client = Client::new();
-        let response = client
-            .get(format!(
-                "http://ns31695324.ip-141-94-163.eu:10080/attest/{}",
-                hashed
-            ))
-            .send()
-            .await
-            .unwrap()
-            .bytes()
-            .await
-            .unwrap();
-
-        let hex_quote = hex::encode(response);
-        let quote = hex::decode(hex_quote).unwrap();
-        let client = Client::new();
-
-        let verification_resp = client
-            .post("http://ns31695324.ip-141-94-163.eu:10080/verify")
-            .header("Content-Type", "application/octet-stream")
-            .body(quote)
-            .send()
-            .await
-            .unwrap();
-
-        let verification_deser = verification_resp
-            .json::<QuoteVerificationResult>()
-            .await
-            .unwrap();
-        let decoded = hex::encode(
-            &BASE64_STANDARD
-                .decode(verification_deser.td_quote_body.report_data)
-                .unwrap()[0..32],
-        );
-        assert_eq!(hashed, decoded);
-
-        println!("Appdata verified successfully");
-    }
-}
+mod test;

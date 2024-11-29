@@ -1,6 +1,6 @@
 use super::GuestServiceInner;
 use std::sync::Arc;
-use warp::{reject::Rejection, reply::WithStatus, Filter};
+use warp::{reject::Rejection, reply::Json, Filter};
 
 pub(crate) fn with_impl<H>(
     guest_internal: Arc<H>,
@@ -54,17 +54,13 @@ impl<H: GuestServiceInner + Send + Sync> GuestPaths<H> {
                         .onboard_new_node(request.quote, request.pubkeys)
                         .await
                     {
-                        Ok(_) => {
-                            return Ok::<WithStatus<String>, Rejection>(warp::reply::with_status(
-                                "success".into(),
-                                warp::http::StatusCode::CREATED,
-                            ))
+                        Ok(encrypted) => {
+                            return Ok::<Json, Rejection>(warp::reply::json(&encrypted))
                         }
                         Err(e) => {
-                            return Ok(warp::reply::with_status(
-                                format!("error while onboarding in inner guest impl {:?}", e),
-                                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-                            ))
+                            return Ok(warp::reply::json(&serde_json::json!({
+                                "error": format!("{:?} while onbnoarding in inner guest impl", e)
+                            })))
                         }
                     }
                 },
@@ -82,20 +78,15 @@ impl<H: GuestServiceInner + Send + Sync> GuestPaths<H> {
             .and_then(
                 |request: requests::GetKeyArgs<H>, guest_impl: Arc<H>| async move {
                     match guest_impl.get_derived_key(request.tag).await {
-                        Ok(_) => {
-                            return Ok::<WithStatus<String>, Rejection>(warp::reply::with_status(
-                                "success".into(),
-                                warp::http::StatusCode::CREATED,
+                        Ok(derived) => {
+                            return Ok::<Json, Rejection>(warp::reply::json(
+                               &derived
                             ))
                         }
                         Err(e) => {
-                            return Ok(warp::reply::with_status(
-                                format!(
-                                    "error while getting derived key in inner guest impl {:?}",
-                                    e
-                                ),
-                                warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-                            ))
+                            return Ok(warp::reply::json(&serde_json::json!({
+                                "error": format!("{:?} while getting derived key in inner guest impl", e)
+                            })))
                         }
                     }
                 },

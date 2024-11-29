@@ -1,8 +1,8 @@
 use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey, VerifyingKey};
 use sha2::{Digest, Sha256};
 use stellar_xdr::curr::{
-    DecoratedSignature, Hash, Limits, Signature, SignatureHint, Transaction, TransactionEnvelope,
-    TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
+    DecoratedSignature, Hash, Limits, ReadXdr, Signature, SignatureHint, Transaction,
+    TransactionEnvelope, TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
     TransactionV1Envelope, WriteXdr,
 };
 
@@ -45,4 +45,28 @@ pub fn sign_transaction(tx: Transaction, network_passphrase: &str, secret_key: &
     });
 
     envelope.to_xdr_base64(Limits::none()).unwrap()
+}
+
+pub async fn sign_and_send_tx(envelope: String, secret_key: [u8; 32]) -> anyhow::Result<()> {
+    let stellar_secret_key = stellar_strkey::ed25519::PrivateKey(secret_key).to_string();
+
+    let tx = Transaction::from_xdr_base64(envelope.clone(), Limits::none());
+    let signed = sign_transaction(
+        tx.unwrap(),
+        "Test SDF Network ; September 2015",
+        &stellar_secret_key,
+    );
+
+    let response = reqwest::Client::new()
+        .post(format!("https://horizon-testnet.stellar.org/transactions"))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(format!("tx={}", urlencoding::encode(&signed)))
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    println!("Executed transaction, response: {}\n", response);
+
+    Ok(())
 }

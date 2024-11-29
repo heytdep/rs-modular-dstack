@@ -11,9 +11,7 @@ use anyhow::anyhow;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use stellar_xdr::curr::{Limits, ReadXdr, Transaction};
-use utils::sign_transaction;
-//use x25519_dalek::{EphemeralSecret, PublicKey};
+use utils::sign_and_send_tx;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TransactionResponse {
@@ -35,93 +33,114 @@ pub struct PendingObject {
     pub pubkey: String,
 }
 
+async fn post_to_zephyr(
+    secret_key: [u8; 32],
+    function_name: &str,
+    args: String,
+) -> anyhow::Result<()> {
+    let zephyr_url = "https://api.mercurydata.app/zephyr/execute/39";
+    let payload = json!({
+        "project_name": "newyork",
+        "mode": {
+            "Function": {
+                "fname": function_name,
+                "arguments": args,
+            }
+        }
+    });
+
+    let client = Client::new();
+    let response = client
+        .post(zephyr_url)
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await?;
+    let txenvelope: TransactionResponse = response.json().await?;
+
+    if let Some(envelope) = txenvelope.envelope {
+        sign_and_send_tx(envelope, secret_key).await?
+    }
+
+    Ok(())
+}
+
+// This won't post anything to be pulled client side for automated replication but
+// ensures that the cluster contract is controlled by the allegedly TDX-generated shared pubkey.
+// Again, this is a minimal dstack implementation, so the nodes have to audit the cluster before
+// joining it, i.e they need to make sure that the shared pubkey is within the valid TDX quote.
 pub async fn post_bootstrap(
     cluster_contract: [u8; 32],
     secret_key: [u8; 32],
     quote: String,
     shared_pubkey: [u8; 32],
 ) -> anyhow::Result<()> {
-    let cluster_contract = stellar_strkey::Contract(cluster_contract).to_string();
-    let zephyr_url = "https://api.mercurydata.app/zephyr/execute/39";
-    let payload = json!({
-        "project_name": "newyork",
-        "mode": {
-            "Function": {
-                "fname": "bootstrap",
-                "arguments": format!(r#"{{
-                    \"cluster\": \"{}\",
-                    \"pubkey\": \"{}\",
-                    \"quote\": \"{}\",
-            }}"#, cluster_contract, hex::encode(shared_pubkey), quote)
-            }
-        }
-    });
-
-    let client = Client::new();
-    let response = client
-        .post(zephyr_url)
-        .header("Content-Type", "application/json")
-        .json(&payload)
-        .send()
-        .await?;
-    let txenvelope: TransactionResponse = response.json().await?;
-
-    if let Some(envelope) = txenvelope.envelope {
-        sign_and_send_tx(envelope, secret_key).await?
-    }
-
-    Ok(())
+    let args = format!(
+        r#"{{
+            \"cluster\": \"{}\",
+            \"pubkey\": \"{}\",
+            \"quote\": \"{}\"
+        }}"#,
+        stellar_strkey::Contract(cluster_contract).to_string(),
+        hex::encode(shared_pubkey),
+        quote
+    );
+    post_to_zephyr(secret_key, "bootstrap", args).await
 }
 
+// This will post new data to get_pending allowing the onboard thread to get the quotes + pubkeys
+// of the nodes that want to join the cluster.
 pub async fn post_register(
     cluster_contract: [u8; 32],
     secret_key: [u8; 32],
     quote: String,
     node_pubkey: &[u8; 32],
 ) -> anyhow::Result<()> {
-    let cluster_contract = stellar_strkey::Contract(cluster_contract).to_string();
-    let zephyr_url = "https://api.mercurydata.app/zephyr/execute/39";
-    let payload = json!({
-        "project_name": "newyork",
-        "mode": {
-            "Function": {
-                "fname": "register",
-                "arguments": format!(r#"{{
-                    \"cluster\": \"{}\",
-                    \"quote\": \"{}\",
-                    \"pubkey\": \"{}\",
-            }}"#, cluster_contract, quote, hex::encode(node_pubkey))
-            }
-        }
-    });
-
-    let client = Client::new();
-    let response = client
-        .post(zephyr_url)
-        .header("Content-Type", "application/json")
-        .json(&payload)
-        .send()
-        .await?;
-    let txenvelope: TransactionResponse = response.json().await?;
-
-    if let Some(envelope) = txenvelope.envelope {
-        sign_and_send_tx(envelope, secret_key).await?
-    }
-
-    Ok(())
+    let args = format!(
+        r#"{{
+            \"cluster\": \"{}\",
+            \"quote\": \"{}\",
+            \"pubkey\": \"{}\"
+        }}"#,
+        stellar_strkey::Contract(cluster_contract).to_string(),
+        quote,
+        hex::encode(node_pubkey)
+    );
+    post_to_zephyr(secret_key, "register", args).await
 }
 
-pub async fn get_pending(cluster_contract: [u8; 32]) -> anyhow::Result<Vec<PendingObject>> {
+// This will post new data to get_onboard allowing the replicatoor to get the encrypted message.
+pub async fn post_onboard(
+    cluster_contract: [u8; 32],
+    secret_key: [u8; 32],
+    encrypted_message: Vec<u8>,
+    node_pubkey: &[u8; 32],
+) -> anyhow::Result<()> {
+    let args = format!(
+        r#"{{
+            \"cluster\": \"{}\",
+            \"encrypted\": \"{}\",
+            \"pubkey\": \"{}\"
+        }}"#,
+        stellar_strkey::Contract(cluster_contract).to_string(),
+        hex::encode(encrypted_message),
+        hex::encode(node_pubkey)
+    );
+    post_to_zephyr(secret_key, "onboard", args).await
+}
+
+async fn pull_from_zephyr<T: serde::de::DeserializeOwned>(
+    cluster_contract: [u8; 32],
+    function_name: &str,
+) -> anyhow::Result<T> {
     let cluster_contract = stellar_strkey::Contract(cluster_contract).to_string();
     let zephyr_url = "https://api.mercurydata.app/zephyr/execute/39";
     let payload = json!({
         "project_name": "newyork",
         "mode": {
             "Function": {
-                "fname": "pending",
-                "arguments": format!(r#"{{
-                        \"cluster\": \"{}\",
-                    }}"#, cluster_contract)
+                "fname": function_name,
+                "arguments": format!(r#"{{\"cluster\": \"{}\"}}"#, cluster_contract),
             }
         }
     });
@@ -137,61 +156,20 @@ pub async fn get_pending(cluster_contract: [u8; 32]) -> anyhow::Result<Vec<Pendi
     Ok(response.json().await?)
 }
 
+pub async fn get_pending(cluster_contract: [u8; 32]) -> anyhow::Result<Vec<PendingObject>> {
+    pull_from_zephyr(cluster_contract, "pending").await
+}
+
 pub async fn get_onboarded(
     cluster_contract: [u8; 32],
     node_pubkey: &[u8; 32],
 ) -> anyhow::Result<String> {
-    let cluster_contract = stellar_strkey::Contract(cluster_contract).to_string();
-    let zephyr_url = "https://api.mercurydata.app/zephyr/execute/39";
-    let payload = json!({
-        "project_name": "newyork",
-        "mode": {
-            "Function": {
-                "fname": "onboarded",
-                "arguments": format!(r#"{{
-                    \"cluster\": \"{}\",
-            }}"#, cluster_contract)
-            }
-        }
-    });
-
-    let client = Client::new();
-    let response = client
-        .post(zephyr_url)
-        .header("Content-Type", "application/json")
-        .json(&payload)
-        .send()
-        .await?;
-    let onboarded: Vec<OnboardedObject> = response.json().await?;
+    let onboarded: Vec<OnboardedObject> = pull_from_zephyr(cluster_contract, "onboarded").await?;
     for onboarded in onboarded {
         if onboarded.node_pubkey == hex::encode(node_pubkey) {
             return Ok(onboarded.shared_secret);
         }
     }
 
-    Err(anyhow!("").into())
-}
-
-pub async fn sign_and_send_tx(envelope: String, secret_key: [u8; 32]) -> anyhow::Result<()> {
-    let stellar_secret_key = stellar_strkey::ed25519::PrivateKey(secret_key).to_string();
-
-    let tx = Transaction::from_xdr_base64(envelope.clone(), Limits::none());
-    let signed = sign_transaction(
-        tx.unwrap(),
-        "Test SDF Network ; September 2015",
-        &stellar_secret_key,
-    );
-
-    let response = reqwest::Client::new()
-        .post(format!("https://horizon-testnet.stellar.org/transactions"))
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(format!("tx={}", urlencoding::encode(&signed)))
-        .send()
-        .await?
-        .text()
-        .await?;
-
-    println!("Executed transaction, response: {}\n", response);
-
-    Ok(())
+    Err(anyhow!("No matching onboarded node found").into())
 }
