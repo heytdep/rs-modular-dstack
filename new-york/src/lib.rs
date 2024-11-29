@@ -194,7 +194,8 @@ impl GuestServiceInner for GuestServices {
                     if &expected_shared_pubkey_bytes != shared_pubkey.as_bytes() {
                         panic!("Nodes posted invalid shared secret")
                     }
-                    shared_secret = shared_secret_bytes;
+                    shared_secret = *shared_secret_bytes;
+                    break;
                 } else {
                     println!("Didn't hear from cluster contract yet, waiting 5 seconds");
                     sleep(Duration::from_secs(5)).await;
@@ -217,10 +218,10 @@ impl GuestServiceInner for GuestServices {
                 hex::encode(my_pubkey.as_bytes()),
                 request_bootstrap
             );
-            shared_secret = my_secret.as_bytes();
+            shared_secret = *my_secret.as_bytes();
         }
         println!("Got secret! {}", hex::encode(shared_secret));
-        Ok(*shared_secret)
+        Ok(shared_secret)
     }
 
     /// Verifies the provided quote ensuring that [`pubkeys[0]`] is within the quote, if that
