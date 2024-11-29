@@ -41,6 +41,14 @@ impl<H: GuestServiceInner + Send + Sync> GuestPaths<H> {
         }
     }
 
+    pub fn status(
+        &self,
+    ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+        warp::path("status")
+            .and(warp::get())
+            .map(|| format!("Live"))
+    }
+
     pub fn onboard_new_node(
         &self,
     ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {

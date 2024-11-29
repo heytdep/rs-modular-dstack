@@ -43,6 +43,14 @@ impl<H: HostServiceInner + Send + Sync> HostPaths<H> {
         }
     }
 
+    pub fn status(
+        &self,
+    ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+        warp::path("status")
+            .and(warp::get())
+            .map(|| format!("Live"))
+    }
+
     pub fn bootstrap(
         &self,
     ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {

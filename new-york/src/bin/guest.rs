@@ -2,6 +2,7 @@ use std::{env, sync::Arc};
 
 use dstack_core::{guest_paths, GuestServiceInner};
 use new_york::GuestServices;
+use warp::Filter;
 
 // Note: as you'll notice, the pattern for setting the secret is really bad, will have to find a good way to deal
 // with inferring the secret. A solution which I'm not a fan of would be to wrap in a mutex/rwlock
@@ -31,7 +32,8 @@ async fn main() {
         guest_paths::GuestPaths::new(threadsafe);
 
     let _ = tokio::join!(
-        warp::serve(guest_paths.onboard_new_node()).run(([127, 0, 0, 1], 3030)),
+        warp::serve(guest_paths.onboard_new_node().or(guest_paths.status()))
+            .run(([127, 0, 0, 1], 3030)),
         // Note: this is currently unsafe, this microservice should probably only run within
         // the podman container and fed with the shared secret as environment variable.
         warp::serve(guest_paths.get_derived_key()).run(([127, 0, 0, 1], 3031))

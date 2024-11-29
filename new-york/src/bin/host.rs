@@ -16,6 +16,12 @@ async fn main() {
 
     let _ = tokio::join!(
         threadsafe.onboard_thread(),
-        warp::serve(host_paths.bootstrap().or(host_paths.register())).run(([127, 0, 0, 1], 8000))
+        warp::serve(
+            host_paths
+                .bootstrap()
+                .or(host_paths.register())
+                .or(host_paths.status())
+        )
+        .run(([127, 0, 0, 1], 8000))
     );
 }
