@@ -69,30 +69,31 @@ impl HostServiceInner for HostServices {
         println!("Onboarding thread started");
         loop {
             println!("Checking for new onboard requests ...");
-            let current_pending = stellar::get_pending(self.contract).await?;
-            for pending in current_pending {
-                let quote = pending.quote;
-                let pubkey = pending.pubkey;
-                let pubkey_bytes = hex::decode(&pubkey)?.try_into().unwrap();
+            if let Ok(current_pending) = stellar::get_pending(self.contract).await {
+                for pending in current_pending {
+                    let quote = pending.quote;
+                    let pubkey = pending.pubkey;
+                    let pubkey_bytes = hex::decode(&pubkey)?.try_into().unwrap();
 
-                // call tdx host-facing interface.
-                let client = reqwest::Client::new();
-                let resp = client
-                    .post("http://localhost:3030/onboard")
-                    .json(&guest_paths::requests::OnboardArgs::<GuestServices> {
-                        quote,
-                        pubkeys: vec![pubkey_bytes],
-                    })
-                    .send()
-                    .await?;
-                let message: <GuestServices as GuestServiceInner>::EncryptedMessage =
-                    resp.json().await?;
-                println!(
-                    "Onboarding {} with encrypted message {}",
-                    pubkey,
-                    hex::encode(&message)
-                );
-                stellar::post_onboard(self.contract, self.secret, message, &pubkey_bytes).await?;
+                    // call tdx host-facing interface.
+                    let client = reqwest::Client::new();
+                    let resp = client
+                        .post("http://localhost:3030/onboard")
+                        .json(&guest_paths::requests::OnboardArgs::<GuestServices> {
+                            quote,
+                            pubkeys: vec![pubkey_bytes],
+                        })
+                        .send()
+                        .await?;
+                    let message: <GuestServices as GuestServiceInner>::EncryptedMessage =
+                        resp.json().await?;
+                    println!(
+                        "Onboarding {} with encrypted message {}",
+                        pubkey,
+                        hex::encode(&message)
+                    );
+                    stellar::post_onboard(self.contract, self.secret, message, &pubkey_bytes).await?;
+                }
             }
 
             sleep(Duration::from_secs(5)).await
