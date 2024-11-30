@@ -122,7 +122,7 @@ impl HostServiceInner for HostServices {
             }
 
             last_processed = get_timestamp();
-            sleep(Duration::from_secs(5)).await
+            sleep(Duration::from_secs(15)).await
         }
     }
 }
