@@ -18,7 +18,6 @@ use sha2::{Digest, Sha256};
 use std::time::Duration;
 use stellar::get_onboarded;
 use tokio::time::sleep;
-use x25519_dalek::StaticSecret;
 
 mod stellar;
 
@@ -158,7 +157,7 @@ impl GuestServiceInner for GuestServices {
             .attestation
             .get_quote(my_pubkey.as_bytes().to_vec())
             .await?;
-        let mut shared_secret;
+        let shared_secret;
 
         // Note: whether to bootstrap is operator inferred not chain-inferred.
         if let Some(expected_shared_pubkey_bytes) = self.shared_public {

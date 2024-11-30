@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{env, sync::Arc};
 
 use dstack_core::{host_paths, HostServiceInner};
 use new_york::HostServices;
@@ -6,7 +6,12 @@ use warp::Filter;
 
 #[tokio::main]
 async fn main() {
-    let host_internal = HostServices::new([0; 32], [0; 32]);
+    let cluster_string = env::var("CLUSTER").unwrap();
+    let cluster_contract = stellar_strkey::Contract::from_string(&cluster_string).unwrap().0;
+    let stellar_secret_string = env::var("SECRET").unwrap();
+    let stellar_secret = stellar_strkey::ed25519::PrivateKey::from_string(&stellar_secret_string).unwrap().0;
+    
+    let host_internal = HostServices::new(cluster_contract, stellar_secret);
     let threadsafe = Arc::new(host_internal);
 
     // Note: differently from the guest replicatoor thread which needs to recover the shared

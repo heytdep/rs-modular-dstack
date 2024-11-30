@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utils::sign_and_send_tx;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TransactionResponse {
     pub status: Option<String>,
     pub envelope: Option<String>,
@@ -58,6 +58,7 @@ async fn post_to_zephyr(
         .send()
         .await?;
     let txenvelope: TransactionResponse = response.json().await?;
+    println!("Got transaction envelope to sign: {:?}", txenvelope);
 
     if let Some(envelope) = txenvelope.envelope {
         sign_and_send_tx(envelope, secret_key).await?

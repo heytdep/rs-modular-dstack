@@ -10,11 +10,14 @@ use warp::Filter;
 
 #[tokio::main]
 async fn main() {
-    let guest_internal = GuestServices::new([0; 32]);
+    let cluster_string = env::var("CLUSTER").unwrap();
+    let cluster_contract = stellar_strkey::Contract::from_string(&cluster_string).unwrap().0;
+    
+    let guest_internal = GuestServices::new(cluster_contract);
     let threadsafe = Arc::new(guest_internal);
     let secret = threadsafe.replicate_thread().await;
 
-    let mut with_shared_secret = GuestServices::new([0; 32]);
+    let mut with_shared_secret = GuestServices::new(cluster_contract);
     with_shared_secret.set_secret(secret.unwrap());
 
     // if operator infers PUBKEY then we want to join an already-bootstrapped cluster.
