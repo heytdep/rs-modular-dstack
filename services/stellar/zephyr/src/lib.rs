@@ -30,16 +30,29 @@ pub extern "C" fn on_close() {
 
             if topic1 == Symbol::new(&env.soroban(), "register") {
                 let quote: SorobanString = env.from_scval(&event.data);
+                let mut slice = Vec::new();
+                quote.copy_into_slice(&mut slice);
+                let quote_string = String::from_utf8(slice.clone()).unwrap();
+                slice.clear();
+                pubkey.copy_into_slice(&mut slice);
+
                 let new_pending = Pending {
-                    quote: quote.to_string().as_str().to_string(),
-                    pubkey: pubkey.to_string().as_str().to_string(),
+                    quote: quote_string,
+                    pubkey: String::from_utf8(slice).unwrap(),
                 };
                 new_pending.put(&env);
             } else if topic1 == Symbol::new(&env.soroban(), "onboard") {
                 let encrypted: SorobanString = env.from_scval(&event.data);
+                let mut slice = Vec::new();
+                encrypted.copy_into_slice(&mut slice);
+                let encrypted_string = String::from_utf8(slice.clone()).unwrap();
+                slice.clear();
+                pubkey.copy_into_slice(&mut slice);
+
+                
                 let new_onboard = Onboard {
-                    encrypted: encrypted.to_string().as_str().to_string(),
-                    pubkey: pubkey.to_string().as_str().to_string(),
+                    encrypted: encrypted_string,
+                    pubkey: String::from_utf8(slice).unwrap(),
                 };
             }
         }

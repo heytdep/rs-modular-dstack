@@ -27,7 +27,7 @@ pub struct OnboardedObject {
     pub shared_secret: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PendingObject {
     // hex-encoded.
     pub quote: String,

@@ -70,6 +70,7 @@ impl HostServiceInner for HostServices {
         loop {
             println!("Checking for new onboard requests ...");
             if let Ok(current_pending) = stellar::get_pending(self.contract).await {
+                println!("Got pending: {:?}", current_pending);
                 for pending in current_pending {
                     let quote = pending.quote;
                     let pubkey = pending.pubkey;

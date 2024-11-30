@@ -4,9 +4,11 @@ resolver = "2"
 members = [ "crates/dcap-quotes", "crates/diffie-hellman", "crates/dummy-attestation",
     "dstack-core", 
     "examples/ping-host", 
-    "new-york", "contracts/stellar/simple-cluster", "services/stellar/zephyr"
+    "new-york", "contracts/stellar/simple-cluster", 
+#    "services/stellar/zephyr"
 ]
 
+exclude = ["services/stellar/zephyr"]
 
 [workspace.dependencies]
 dstack-core = {path="./dstack-core"}
