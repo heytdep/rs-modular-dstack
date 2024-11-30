@@ -15,7 +15,7 @@ use dstack_core::{
 };
 use dummy_attestation::Attestation;
 use sha2::{Digest, Sha256};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use stellar::get_onboarded;
 use tokio::time::sleep;
 
@@ -66,37 +66,42 @@ impl HostServiceInner for HostServices {
 
     async fn onboard_thread(&self) -> anyhow::Result<()> {
         println!("Onboarding thread started");
+
+        let mut last_processed = get_timestamp();
         loop {
             println!("Checking for new onboard requests ...");
             if let Ok(current_pending) = stellar::get_pending(self.contract).await {
                 println!("Got pending: {:?}", current_pending);
                 for pending in current_pending {
-                    let quote = pending.quote;
-                    let pubkey = pending.pubkey;
-                    let pubkey_bytes = hex::decode(&pubkey)?.try_into().unwrap();
+                    if pending.at_time > last_processed {
+                        let quote = pending.quote;
+                        let pubkey = pending.pubkey;
+                        let pubkey_bytes = hex::decode(&pubkey)?.try_into().unwrap();
 
-                    // call tdx host-facing interface.
-                    let client = reqwest::Client::new();
-                    let resp = client
-                        .post("http://localhost:3030/onboard")
-                        .json(&guest_paths::requests::OnboardArgs::<GuestServices> {
-                            quote,
-                            pubkeys: vec![pubkey_bytes],
-                        })
-                        .send()
-                        .await?;
-                    let message: <GuestServices as GuestServiceInner>::EncryptedMessage =
-                        resp.json().await?;
-                    println!(
-                        "Onboarding {} with encrypted message {}",
-                        pubkey,
-                        hex::encode(&message)
-                    );
-                    stellar::post_onboard(self.contract, self.secret, message, &pubkey_bytes)
-                        .await?;
+                        // call tdx host-facing interface.
+                        let client = reqwest::Client::new();
+                        let resp = client
+                            .post("http://localhost:3030/onboard")
+                            .json(&guest_paths::requests::OnboardArgs::<GuestServices> {
+                                quote,
+                                pubkeys: vec![pubkey_bytes],
+                            })
+                            .send()
+                            .await?;
+                        let message: <GuestServices as GuestServiceInner>::EncryptedMessage =
+                            resp.json().await?;
+                        println!(
+                            "Onboarding {} with encrypted message {}",
+                            pubkey,
+                            hex::encode(&message)
+                        );
+                        stellar::post_onboard(self.contract, self.secret, message, &pubkey_bytes)
+                            .await?;
+                    }
                 }
             }
 
+            last_processed = get_timestamp();
             sleep(Duration::from_secs(5)).await
         }
     }
@@ -273,6 +278,15 @@ impl TdxOnlyGuestServiceInner for GuestServices {
 
         Ok(hex::encode(derived))
     }
+}
+
+fn get_timestamp() -> i64 {
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+
+    since_the_epoch.as_secs() as i64
 }
 
 #[cfg(test)]

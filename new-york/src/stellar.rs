@@ -24,8 +24,9 @@ pub struct TransactionResponse {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct OnboardedObject {
     // hex-encoded.
-    pub node_pubkey: String,
-    pub shared_secret: String,
+    pub pubkey: String,
+    pub encrypted: String,
+    pub at_time: i64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -33,6 +34,7 @@ pub struct PendingObject {
     // hex-encoded.
     pub quote: String,
     pub pubkey: String,
+    pub at_time: i64,
 }
 
 pub async fn post_to_zephyr(
@@ -141,7 +143,7 @@ pub async fn post_onboard(
 
     let args = json!({
         "cluster": stellar_strkey::Contract(cluster_contract).to_string(),
-        "encrypted": hex::encode(encrypted_message),
+        "quote": hex::encode(encrypted_message),
         "pubkey": hex::encode(node_pubkey),
         "source": public
     });
@@ -197,8 +199,8 @@ pub async fn get_onboarded(
 ) -> anyhow::Result<String> {
     let onboarded: Vec<OnboardedObject> = pull_from_zephyr(cluster_contract, "onboarded").await?;
     for onboarded in onboarded {
-        if onboarded.node_pubkey == hex::encode(node_pubkey) {
-            return Ok(onboarded.shared_secret);
+        if onboarded.pubkey == hex::encode(node_pubkey) {
+            return Ok(onboarded.encrypted);
         }
     }
 

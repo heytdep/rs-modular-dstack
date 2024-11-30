@@ -8,6 +8,7 @@ use zephyr_sdk::{
 pub struct Pending {
     pub pubkey: String,
     pub quote: String,
+    pub at_time: i64
 }
 
 #[derive(DatabaseDerive, Clone, Serialize)]
@@ -15,12 +16,15 @@ pub struct Pending {
 pub struct Onboard {
     pub pubkey: String,
     pub encrypted: String,
+    pub at_time: i64
 }
 
 #[no_mangle]
 pub extern "C" fn on_close() {
     let env = EnvClient::new();
-    env.log().debug(format!("Got new ledger"), None);
+    env.log().debug(format!("Got new ledger {}", env.reader().ledger_sequence()), None);
+    let at_time = env.reader().ledger_timestamp() as i64;
+    env.log().debug(format!("Got timestamp"), None);
     let events = env.reader().pretty().soroban_events();
     for event in events {
         //if stellar_strkey::Contract(event.contract).to_string() == env!("CLUSTER") {
@@ -33,6 +37,7 @@ pub extern "C" fn on_close() {
                 let new_pending = Pending {
                     quote: soroban_string_to_alloc_string(&env, quote),
                     pubkey: soroban_string_to_alloc_string(&env, pubkey),
+                    at_time
                 };
                 new_pending.put(&env);
             } else if topic1 == Symbol::new(&env.soroban(), "onboard") {
@@ -40,6 +45,7 @@ pub extern "C" fn on_close() {
                 let new_onboard = Onboard {
                     encrypted: soroban_string_to_alloc_string(&env, encrypted),
                     pubkey: soroban_string_to_alloc_string(&env, pubkey),
+                    at_time
                 };
 
                 new_onboard.put(&env);

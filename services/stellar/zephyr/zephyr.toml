@@ -11,6 +11,11 @@ col_type = "BYTEA"
 name = "quote"
 col_type = "BYTEA"
 
+[[tables.columns]]
+name = "at_time"
+col_type = "BYTEA"
+
+
 [[tables]]
 name = "onboard"
 
@@ -20,5 +25,9 @@ col_type = "BYTEA"
 
 [[tables.columns]]
 name = "encrypted"
+col_type = "BYTEA"
+
+[[tables.columns]]
+name = "at_time"
 col_type = "BYTEA"
 
