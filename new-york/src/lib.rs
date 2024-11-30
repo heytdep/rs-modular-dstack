@@ -36,6 +36,18 @@ impl HostServices {
     }
 }
 
+macro_rules! continue_on_err {
+    ($expr:expr) => {
+        match $expr {
+            Ok(val) => val,
+            Err(e) => {
+                eprintln!("Error: {:?}", e);
+                continue;
+            }
+        }
+    };
+}
+
 #[async_trait]
 impl HostServiceInner for HostServices {
     type Pubkey = [u8; 32];
@@ -71,7 +83,6 @@ impl HostServiceInner for HostServices {
         loop {
             println!("Checking for new onboard requests ...");
             if let Ok(current_pending) = stellar::get_pending(self.contract).await {
-                println!("Got pending: {:?}", current_pending);
                 for pending in current_pending {
                     if pending.at_time > last_processed {
                         let quote = pending.quote;
@@ -80,23 +91,32 @@ impl HostServiceInner for HostServices {
 
                         // call tdx host-facing interface.
                         let client = reqwest::Client::new();
-                        let resp = client
-                            .post("http://localhost:3030/onboard")
-                            .json(&guest_paths::requests::OnboardArgs::<GuestServices> {
-                                quote,
-                                pubkeys: vec![pubkey_bytes],
-                            })
-                            .send()
-                            .await?;
+                        let resp = continue_on_err!(
+                            client
+                                .post("http://localhost:3030/onboard")
+                                .json(&guest_paths::requests::OnboardArgs::<GuestServices> {
+                                    quote,
+                                    pubkeys: vec![pubkey_bytes],
+                                })
+                                .send()
+                                .await
+                        );
                         let message: <GuestServices as GuestServiceInner>::EncryptedMessage =
-                            resp.json().await?;
+                            continue_on_err!(resp.json().await);
                         println!(
                             "Onboarding {} with encrypted message {}",
                             pubkey,
                             hex::encode(&message)
                         );
-                        stellar::post_onboard(self.contract, self.secret, message, &pubkey_bytes)
-                            .await?;
+                        continue_on_err!(
+                            stellar::post_onboard(
+                                self.contract,
+                                self.secret,
+                                message,
+                                &pubkey_bytes
+                            )
+                            .await
+                        );
                     }
                 }
             }
