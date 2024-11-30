@@ -83,18 +83,14 @@ pub async fn post_bootstrap(
             .as_bytes(),
     )
     .to_string();
-    let args = format!(
-        r#"{{
-            \"cluster\": \"{}\",
-            \"pubkey\": \"{}\",
-            \"quote\": \"{}\",
-            \"source\": \"{}\"
-        }}"#,
-        stellar_strkey::Contract(cluster_contract).to_string(),
-        hex::encode(shared_pubkey),
-        quote,
-        public
-    );
+
+    let args = json!({
+        "cluster": stellar_strkey::Contract(cluster_contract).to_string(),
+        "pubkey": hex::encode(shared_pubkey),
+        "quote": quote,
+        "source": public
+    }).to_string();
+
     post_to_zephyr(secret_key, "bootstrap", args).await
 }
 
@@ -113,18 +109,13 @@ pub async fn post_register(
     )
     .to_string();
 
-    let args = format!(
-        r#"{{
-            \"cluster\": \"{}\",
-            \"quote\": \"{}\",
-            \"pubkey\": \"{}\",
-            \"source\": \"{}\"
-        }}"#,
-        stellar_strkey::Contract(cluster_contract).to_string(),
-        quote,
-        hex::encode(node_pubkey),
-        public
-    );
+    let args = json!({
+        "cluster": stellar_strkey::Contract(cluster_contract).to_string(),
+        "quote": quote,
+        "pubkey": hex::encode(node_pubkey),
+        "source": public
+    }).to_string();
+
     post_to_zephyr(secret_key, "register", args).await
 }
 
@@ -141,18 +132,14 @@ pub async fn post_onboard(
             .as_bytes(),
     )
     .to_string();
-    let args = format!(
-        r#"{{
-            \"cluster\": \"{}\",
-            \"encrypted\": \"{}\",
-            \"pubkey\": \"{}\",
-            \"source\": \"{}\",
-        }}"#,
-        stellar_strkey::Contract(cluster_contract).to_string(),
-        hex::encode(encrypted_message),
-        hex::encode(node_pubkey),
-        public
-    );
+
+    let args = json!({
+        "cluster": stellar_strkey::Contract(cluster_contract).to_string(),
+        "encrypted": hex::encode(encrypted_message),
+        "pubkey": hex::encode(node_pubkey),
+        "source": public
+    }).to_string();
+
     post_to_zephyr(secret_key, "onboard", args).await
 }
 

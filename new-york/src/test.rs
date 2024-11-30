@@ -30,8 +30,10 @@ async fn dummy_get_quote_verify_test() {
         .unwrap();
 
     let hex_quote = hex::encode(response);
-    let quote = hex::decode(hex_quote).unwrap();
+    let quote = hex::decode(&hex_quote).unwrap();
     let client = Client::new();
+
+    println!("{hex_quote}");
 
     let verification_resp = client
         .post("http://ns31695324.ip-141-94-163.eu:10080/verify")

@@ -165,7 +165,7 @@ impl GuestServiceInner for GuestServices {
             let request_onboard = client
                 .post("http://localhost:8000/register")
                 .json(&host_paths::requests::RegisterArgs::<HostServices> {
-                    quote: hex::encode(quote),
+                    quote,
                     pubkeys: vec![my_pubkey.as_bytes().clone()],
                     signatures: vec![],
                 })
@@ -206,7 +206,7 @@ impl GuestServiceInner for GuestServices {
             let request_bootstrap = client
                 .post("http://localhost:8000/bootstrap")
                 .json(&host_paths::requests::BootstrapArgs::<HostServices> {
-                    quote: hex::encode(quote),
+                    quote,
                     pubkeys: vec![my_pubkey.as_bytes().clone()],
                 })
                 .send()
