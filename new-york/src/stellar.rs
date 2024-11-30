@@ -39,7 +39,7 @@ async fn post_to_zephyr(
     function_name: &str,
     args: String,
 ) -> anyhow::Result<()> {
-    let zephyr_url = "https://api.mercurydata.app/zephyr/execute/39";
+    let zephyr_url = "https://api.mercurydata.app/zephyr/execute/113";
     let payload = json!({
         "project_name": "newyork",
         "mode": {
@@ -160,7 +160,7 @@ async fn pull_from_zephyr<T: serde::de::DeserializeOwned>(
     function_name: &str,
 ) -> anyhow::Result<T> {
     let cluster_contract = stellar_strkey::Contract(cluster_contract).to_string();
-    let zephyr_url = "https://api.mercurydata.app/zephyr/execute/39";
+    let zephyr_url = "https://api.mercurydata.app/zephyr/execute/113";
     let payload = json!({
         "project_name": "newyork",
         "mode": {
