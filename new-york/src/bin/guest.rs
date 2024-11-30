@@ -15,12 +15,8 @@ async fn main() {
         .unwrap()
         .0;
 
-    let guest_internal = GuestServices::new(cluster_contract);
-    let threadsafe = Arc::new(guest_internal);
-    let secret = threadsafe.replicate_thread().await;
-
+    let mut guest_internal_replication = GuestServices::new(cluster_contract);
     let mut with_shared_secret = GuestServices::new(cluster_contract);
-    with_shared_secret.set_secret(secret.unwrap());
 
     // if operator infers PUBKEY then we want to join an already-bootstrapped cluster.
     // else we want to be bootstrapping the cluster ourselves (replay protection should be onchain).
@@ -29,9 +25,14 @@ async fn main() {
             .unwrap()
             .try_into()
             .unwrap();
+        guest_internal_replication.set_expected_public(bytes);
         with_shared_secret.set_expected_public(bytes);
     }
 
+    let threadsafe = Arc::new(guest_internal_replication);
+    let secret = threadsafe.replicate_thread().await;
+
+    with_shared_secret.set_secret(secret.unwrap());
     let threadsafe = Arc::new(with_shared_secret);
     let guest_paths: guest_paths::GuestPaths<GuestServices> =
         guest_paths::GuestPaths::new(threadsafe);
