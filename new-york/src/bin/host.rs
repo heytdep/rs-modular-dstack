@@ -7,10 +7,14 @@ use warp::Filter;
 #[tokio::main]
 async fn main() {
     let cluster_string = env::var("CLUSTER").unwrap();
-    let cluster_contract = stellar_strkey::Contract::from_string(&cluster_string).unwrap().0;
+    let cluster_contract = stellar_strkey::Contract::from_string(&cluster_string)
+        .unwrap()
+        .0;
     let stellar_secret_string = env::var("SECRET").unwrap();
-    let stellar_secret = stellar_strkey::ed25519::PrivateKey::from_string(&stellar_secret_string).unwrap().0;
-    
+    let stellar_secret = stellar_strkey::ed25519::PrivateKey::from_string(&stellar_secret_string)
+        .unwrap()
+        .0;
+
     let host_internal = HostServices::new(cluster_contract, stellar_secret);
     let threadsafe = Arc::new(host_internal);
 

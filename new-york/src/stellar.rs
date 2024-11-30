@@ -34,10 +34,10 @@ pub struct PendingObject {
     pub pubkey: String,
 }
 
-async fn post_to_zephyr(
+pub async fn post_to_zephyr(
     secret_key: [u8; 32],
     function_name: &str,
-    args: String,
+    args: serde_json::Value,
 ) -> anyhow::Result<()> {
     let zephyr_url = "https://api.mercurydata.app/zephyr/execute/113";
     let payload = json!({
@@ -89,7 +89,7 @@ pub async fn post_bootstrap(
         "pubkey": hex::encode(shared_pubkey),
         "quote": quote,
         "source": public
-    }).to_string();
+    });
 
     post_to_zephyr(secret_key, "bootstrap", args).await
 }
@@ -114,7 +114,7 @@ pub async fn post_register(
         "quote": quote,
         "pubkey": hex::encode(node_pubkey),
         "source": public
-    }).to_string();
+    });
 
     post_to_zephyr(secret_key, "register", args).await
 }
@@ -138,7 +138,7 @@ pub async fn post_onboard(
         "encrypted": hex::encode(encrypted_message),
         "pubkey": hex::encode(node_pubkey),
         "source": public
-    }).to_string();
+    });
 
     post_to_zephyr(secret_key, "onboard", args).await
 }

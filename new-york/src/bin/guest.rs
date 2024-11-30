@@ -11,8 +11,10 @@ use warp::Filter;
 #[tokio::main]
 async fn main() {
     let cluster_string = env::var("CLUSTER").unwrap();
-    let cluster_contract = stellar_strkey::Contract::from_string(&cluster_string).unwrap().0;
-    
+    let cluster_contract = stellar_strkey::Contract::from_string(&cluster_string)
+        .unwrap()
+        .0;
+
     let guest_internal = GuestServices::new(cluster_contract);
     let threadsafe = Arc::new(guest_internal);
     let secret = threadsafe.replicate_thread().await;
