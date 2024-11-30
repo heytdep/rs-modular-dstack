@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use zephyr_sdk::{
     prelude::*,
     soroban_sdk::{String as SorobanString, Symbol, TryIntoVal},
-    DatabaseDerive, DatabaseInteract, EnvClient,
+    DatabaseDerive, DatabaseInteract, EnvClient, TransactionResponse,
 };
 
 #[derive(DatabaseDerive, Clone, Serialize)]
@@ -88,7 +88,7 @@ fn get_sequence(env: &EnvClient, source: &str) -> i64 {
         + 1
 }
 
-fn simulate_contract_call(env: &EnvClient, body: &PostArgs, function_name: &str) {
+fn simulate_contract_call(env: &EnvClient, body: &PostArgs, function_name: &str) -> TransactionResponse {
     let sequence = get_sequence(env, &body.source);
     let quote = SorobanString::from_str(&env.soroban(), &body.quote);
     let pubkey = SorobanString::from_str(&env.soroban(), &body.pubkey);
@@ -101,28 +101,34 @@ fn simulate_contract_call(env: &EnvClient, body: &PostArgs, function_name: &str)
             .0,
         Symbol::new(&env.soroban(), function_name),
         (pubkey, quote).try_into_val(env.soroban()).unwrap(),
-    );
+    ).unwrap()
 }
 
 #[no_mangle]
 pub extern "C" fn bootstrap() {
     let env = EnvClient::empty();
     let body: PostArgs = env.read_request_body();
-    simulate_contract_call(&env, &body, "bootstrap");
+    let result = simulate_contract_call(&env, &body, "bootstrap");
+    
+    env.conclude(result);
 }
 
 #[no_mangle]
 pub extern "C" fn onboard() {
     let env = EnvClient::empty();
     let body: PostArgs = env.read_request_body();
-    simulate_contract_call(&env, &body, "onboard");
+    let result = simulate_contract_call(&env, &body, "onboard");
+
+    env.conclude(result);
 }
 
 #[no_mangle]
 pub extern "C" fn register() {
     let env = EnvClient::empty();
     let body: PostArgs = env.read_request_body();
-    simulate_contract_call(&env, &body, "register");
+    let result = simulate_contract_call(&env, &body, "register");
+
+    env.conclude(result);
 }
 
 //
