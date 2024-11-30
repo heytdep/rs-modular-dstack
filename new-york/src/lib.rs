@@ -22,7 +22,7 @@ use tokio::time::sleep;
 mod stellar;
 
 // NOTE: just for ease.
-const NONCE: [u8; 32] = [0; 32];
+const NONCE: [u8; 12] = [0; 12];
 
 // TODO change types depending on the chain we're posting to.
 pub struct HostServices {
@@ -233,7 +233,7 @@ impl GuestServiceInner for GuestServices {
         pubkeys: Vec<Self::Pubkey>,
     ) -> anyhow::Result<Self::EncryptedMessage> {
         let verify = self.attestation.verify_quote(quote).await?;
-
+        println!("Got verification result.");
         let expected_appdata: [u8; 32] = {
             let preimage = format!("register{}", hex::encode(pubkeys[0].to_vec()));
             let mut hasher = Sha256::new();
@@ -246,6 +246,7 @@ impl GuestServiceInner for GuestServices {
             return Err(anyhow!("").into());
         }
 
+        println!("Encrypting secret.");
         let encrypted = self.crypto.encrypt_secret(
             NONCE,
             self.shared_secret.ok_or(anyhow!(""))?.into(),

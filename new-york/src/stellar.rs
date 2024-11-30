@@ -165,7 +165,7 @@ async fn pull_from_zephyr<T: serde::de::DeserializeOwned>(
         "mode": {
             "Function": {
                 "fname": function_name,
-                "arguments": args,
+                "arguments": args.to_string(),
             }
         }
     });
@@ -183,10 +183,11 @@ async fn pull_from_zephyr<T: serde::de::DeserializeOwned>(
 
 pub async fn get_pending(cluster_contract: [u8; 32]) -> anyhow::Result<Vec<PendingObject>> {
     let mut res = pull_from_zephyr::<Vec<PendingObject>>(cluster_contract, "pending").await?;
+    println!("Got {} register requests", res.len());
     res.iter_mut().for_each(|m| {
         m.quote = b64_to_hex(&m.quote);
     });
-
+    println!("Changed to hex");
     Ok(res)
 }
 
@@ -210,10 +211,11 @@ fn hex_to_b64(hex: &str) -> String {
     base64
 }
 
-fn b64_to_hex(hex: &str) -> String {
-    let bytes = hex::decode(hex).unwrap();
-    let base64 = BASE64_STANDARD.encode(bytes);
-    base64
+fn b64_to_hex(b64: &str) -> String {
+    let base64 = BASE64_STANDARD.decode(b64).unwrap();
+    let hex = hex::encode(base64);
+
+    hex
 }
 
 #[test]

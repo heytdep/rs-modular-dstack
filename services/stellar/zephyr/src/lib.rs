@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use zephyr_sdk::{
-    prelude::*,
-    soroban_sdk::{String as SorobanString, Symbol, TryIntoVal},
-    DatabaseDerive, DatabaseInteract, EnvClient, TransactionResponse,
+    prelude::*, soroban_sdk::{String as SorobanString, Symbol, TryIntoVal}, utils::soroban_string_to_alloc_string, DatabaseDerive, DatabaseInteract, EnvClient, TransactionResponse
 };
 
 #[derive(DatabaseDerive, Clone, Serialize)]
@@ -22,40 +20,31 @@ pub struct Onboard {
 #[no_mangle]
 pub extern "C" fn on_close() {
     let env = EnvClient::new();
+    env.log().debug(format!("Got new ledger"), None);
     let events = env.reader().pretty().soroban_events();
     for event in events {
-        if stellar_strkey::Contract(event.contract).to_string() == env!("CLUSTER") {
+        //if stellar_strkey::Contract(event.contract).to_string() == env!("CLUSTER") {
+            env.log().debug(format!("Got new event {:?}", event.topics.clone()), None);
             let topic1: Symbol = env.from_scval(&event.topics.to_vec()[0]);
-            let pubkey: SorobanString = env.from_scval(&event.topics.to_vec()[0]); // note: we always have a topic2 for simple-cluster so this is safe
-
+            let pubkey: SorobanString = env.from_scval(&event.topics.to_vec()[1]); // note: we always have a topic2 for simple-cluster so this is safe
+            
             if topic1 == Symbol::new(&env.soroban(), "register") {
                 let quote: SorobanString = env.from_scval(&event.data);
-                let mut slice = Vec::new();
-                quote.copy_into_slice(&mut slice);
-                let quote_string = String::from_utf8(slice.clone()).unwrap();
-                slice.clear();
-                pubkey.copy_into_slice(&mut slice);
-
                 let new_pending = Pending {
-                    quote: quote_string,
-                    pubkey: String::from_utf8(slice).unwrap(),
+                    quote: soroban_string_to_alloc_string(&env, quote),
+                    pubkey: soroban_string_to_alloc_string(&env, pubkey),
                 };
                 new_pending.put(&env);
             } else if topic1 == Symbol::new(&env.soroban(), "onboard") {
                 let encrypted: SorobanString = env.from_scval(&event.data);
-                let mut slice = Vec::new();
-                encrypted.copy_into_slice(&mut slice);
-                let encrypted_string = String::from_utf8(slice.clone()).unwrap();
-                slice.clear();
-                pubkey.copy_into_slice(&mut slice);
-
-                
                 let new_onboard = Onboard {
-                    encrypted: encrypted_string,
-                    pubkey: String::from_utf8(slice).unwrap(),
+                    encrypted: soroban_string_to_alloc_string(&env, encrypted),
+                    pubkey: soroban_string_to_alloc_string(&env, pubkey),
                 };
+
+                new_onboard.put(&env);
             }
-        }
+        //}
     }
 }
 
