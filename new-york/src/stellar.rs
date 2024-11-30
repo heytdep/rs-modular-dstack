@@ -149,12 +149,17 @@ async fn pull_from_zephyr<T: serde::de::DeserializeOwned>(
 ) -> anyhow::Result<T> {
     let cluster_contract = stellar_strkey::Contract(cluster_contract).to_string();
     let zephyr_url = "https://api.mercurydata.app/zephyr/execute/113";
+
+    let args = json!({
+        "cluster": cluster_contract
+    });
+
     let payload = json!({
         "project_name": "newyork",
         "mode": {
             "Function": {
                 "fname": function_name,
-                "arguments": format!(r#"{{\"cluster\": \"{}\"}}"#, cluster_contract),
+                "arguments": args,
             }
         }
     });
