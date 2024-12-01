@@ -24,3 +24,5 @@ The home for the dstack standard paths to be followed and implemented.
 ## New york
 
 The opinionated implementation for running myrtle-wyckoff-dstack (hence the new-york naming until we find a better one).
+
+To get started running this dstack implementation refer to the [README](./new-york/README.md).

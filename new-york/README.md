@@ -1,4 +1,4 @@
-# NY Starter
+# New-York Starter
 
 This is a minimal implementation of a dstack network using the Stellar blockchain as comms layer.
 
@@ -28,3 +28,11 @@ This will bootsrap the cluster contract on-chain and derive a shared secret on t
 3. Run the guest script: `PUBKEY="SHARED_PUBKEY" CLUSTER="JUST_DEPLOYED" ./target/release/guest`.
 
 You'll see the new node asking to be registered on-chain and bootstrapped node encryting the secret and posting it onchain allowing the new node to derive it.
+
+On the first "genesis" node, you should see the host script picking up the register request from the new node:
+
+<img src="./assets/onboard.png">
+
+On the new node's guest script you should see after some seconds the secret!
+
+<img src="./assets/onboarded.png">
