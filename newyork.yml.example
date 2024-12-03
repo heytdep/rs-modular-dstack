@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: new-york-pod
+  labels:
+    app: new-york
+spec:
+  containers:
+    - name: new-york-container
+      image: new-york-image:latest
+      env:
+        - name: CLUSTER
+          value: "CLUSTER_HERE"
+    - name: ping-host-container
+      image: ping-host-image:latest
+  hostNetwork: true # this has to change in the future.

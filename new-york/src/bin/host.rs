@@ -31,6 +31,6 @@ async fn main() {
                 .or(host_paths.register())
                 .or(host_paths.status())
         )
-        .run(([127, 0, 0, 1], 8000))
+        .run(([0, 0, 0, 0], 8000))
     );
 }

@@ -39,7 +39,7 @@ async fn main() {
 
     let _ = tokio::join!(
         warp::serve(guest_paths.onboard_new_node().or(guest_paths.status()))
-            .run(([127, 0, 0, 1], 3030)),
+            .run(([0, 0, 0, 0], 3030)),
         // Note: this is currently unsafe, this microservice should probably only run within
         // the podman container and fed with the shared secret as environment variable.
         warp::serve(guest_paths.get_derived_key()).run(([127, 0, 0, 1], 3031))

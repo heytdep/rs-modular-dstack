@@ -188,7 +188,7 @@ impl GuestServiceInner for GuestServices {
         if let Some(expected_shared_pubkey_bytes) = self.shared_public {
             // We need to register
             let request_onboard = client
-                .post("http://localhost:8000/register")
+                .post("http://host.containers.internal:8000/register")
                 .json(&host_paths::requests::RegisterArgs::<HostServices> {
                     quote,
                     pubkeys: vec![my_pubkey.as_bytes().clone()],
@@ -229,7 +229,7 @@ impl GuestServiceInner for GuestServices {
         } else {
             // We need to bootstrap
             let request_bootstrap = client
-                .post("http://localhost:8000/bootstrap")
+                .post("http://host.containers.internal:8000/bootstrap")
                 .json(&host_paths::requests::BootstrapArgs::<HostServices> {
                     quote,
                     pubkeys: vec![my_pubkey.as_bytes().clone()],

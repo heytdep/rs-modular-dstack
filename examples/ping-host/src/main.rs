@@ -17,7 +17,7 @@ async fn main() {
 }
 
 async fn ping() -> Result<String, reqwest::Error> {
-    let status = reqwest::get("http://localhost:8080/status")
+    let status = reqwest::get("http://host.containers.internal:8000/status")
         .await?
         .text()
         .await?;
