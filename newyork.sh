@@ -1,17 +1,20 @@
 #!/bin/bash
 
-if [ "$#" -ne 3 ]; then
-  echo "Usage: $0 <CLUSTER> <PUBKEY> <SECRET>"
+# Exit script on error
+set -e
+
+# Check arguments
+if [ "$#" -lt 2 ]; then
+  echo "Usage: $0 <CLUSTER> <SECRET> [PUBKEY]"
   exit 1
 fi
 
 CLUSTER="$1"
-PUBKEY="$2"
-SECRET="$3"
+SECRET="$2"
+PUBKEY="${3:-}"  # this is optional
 
-# TODO: Is there a way for env vars to be inferred at runtime? probably yes.
 generate_newyork_yml() {
-  echo "Generating they pod yml definition ..."
+  echo "Generating newyork.yml with CLUSTER=$CLUSTER..."
   cat <<EOF > newyork.yml
 apiVersion: v1
 kind: Pod
@@ -26,10 +29,18 @@ spec:
       env:
         - name: CLUSTER
           value: "$CLUSTER"
+EOF
+  if [ -n "$PUBKEY" ]; then
+    echo "        - name: PUBKEY" >> newyork.yml
+    echo "          value: \"$PUBKEY\"" >> newyork.yml
+  fi
+
+  cat <<EOF >> newyork.yml
     - name: ping-host-container
       image: xycloo/ping-host-image:latest
   hostNetwork: true
 EOF
+
   echo "newyork.yml created successfully."
 }
 
