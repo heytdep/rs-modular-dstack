@@ -52,7 +52,7 @@ build_and_run_rust() {
   popd
 
   echo "Running Rust application..."
-  CLUSTER="$CLUSTER" SECRET="$SECRET" ./new-york/target/release/host &
+  CLUSTER="$CLUSTER" SECRET="$SECRET" ./target/release/host &
 }
 
 # Upload to flashbox!
