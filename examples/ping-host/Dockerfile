@@ -15,7 +15,8 @@ COPY . .
 
 # Navigate to the workspace root and build the specific crate
 WORKDIR /usr/src/app/examples/ping-host
-RUN cargo build --release
+rustup target add x86_64-unknown-linux-gnu
+RUN cargo build --release --target=x86_64-unknown-linux-gnu
 
 # Final runtime image
 FROM debian:bookworm-slim
