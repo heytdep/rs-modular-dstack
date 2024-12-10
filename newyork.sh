@@ -22,33 +22,15 @@ metadata:
 spec:
   containers:
     - name: new-york-container
-      image: new-york-image:latest
+      image: xycloo/new-york-image:latest
       env:
         - name: CLUSTER
           value: "$CLUSTER"
     - name: ping-host-container
-      image: ping-host-image:latest
+      image: xycloo/ping-host-image:latest
   hostNetwork: true
 EOF
   echo "newyork.yml created successfully."
-}
-
-
-# Services that need to run guest-side are guest microservice (both host-facing and guest-facing) and the actual user application.
-build_images() {
-  if ! podman image exists localhost/ping-host-image:latest; then
-    echo "Building app image ..."
-    podman build -f examples/ping-host/Dockerfile -t localhost/ping-host-image:latest .
-  else
-    echo "app's image already exists."
-  fi
-
-  if ! podman image exists localhost/new-york-image:latest; then
-    echo "Building new-york image ..."
-    podman build -f new-york/Dockerfile -t localhost/new-york-image:latest .
-  else
-    echo "new-york-image already exists."
-  fi
 }
 
 # Build new-york host on host machine
@@ -80,7 +62,6 @@ send_curl_requests() {
 }
 
 generate_newyork_yml
-build_images
 build_and_run_rust
 send_curl_requests
 
