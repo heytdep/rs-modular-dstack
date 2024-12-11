@@ -129,6 +129,7 @@ impl HostServiceInner for HostServices {
 
 pub struct GuestServices {
     // Implementor's configs including helper objects.
+    host_endpoint: String,
     cluster_contract: [u8; 32],
     shared_public: Option<[u8; 32]>,
     shared_secret: Option<[u8; 32]>,
@@ -138,7 +139,9 @@ pub struct GuestServices {
 
 impl GuestServices {
     pub fn new(cluster_contract: [u8; 32]) -> Self {
+        let host_address = std::env::var("HOST").unwrap_or("host.containers.internal:8000".into());
         Self {
+            host_endpoint: host_address,
             cluster_contract,
             shared_public: None,
             shared_secret: None,
@@ -188,7 +191,7 @@ impl GuestServiceInner for GuestServices {
         if let Some(expected_shared_pubkey_bytes) = self.shared_public {
             // We need to register
             let request_onboard = client
-                .post("http://host.containers.internal:8000/register")
+                .post(format!("http://{}/register", self.host_endpoint))
                 .json(&host_paths::requests::RegisterArgs::<HostServices> {
                     quote,
                     pubkeys: vec![my_pubkey.as_bytes().clone()],
@@ -229,7 +232,7 @@ impl GuestServiceInner for GuestServices {
         } else {
             // We need to bootstrap
             let request_bootstrap = client
-                .post("http://host.containers.internal:8000/bootstrap")
+                .post(format!("http://{}/bootstrap", self.host_endpoint))
                 .json(&host_paths::requests::BootstrapArgs::<HostServices> {
                     quote,
                     pubkeys: vec![my_pubkey.as_bytes().clone()],

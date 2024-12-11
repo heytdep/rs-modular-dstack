@@ -4,10 +4,11 @@ use tokio::time::sleep;
 
 #[tokio::main]
 async fn main() {
+    let host_address = std::env::var("HOST").unwrap_or("host.containers.internal:8000".into());
     println!("Pinging the host service to check liveness.");
 
     loop {
-        match ping().await {
+        match ping(&host_address).await {
             Ok(status) => println!("{status}"),
             Err(err) => println!("Error while pinging status: {:?}", err),
         }
@@ -16,8 +17,8 @@ async fn main() {
     }
 }
 
-async fn ping() -> Result<String, reqwest::Error> {
-    let status = reqwest::get("http://host.containers.internal:8000/status")
+async fn ping(host_address: &str) -> Result<String, reqwest::Error> {
+    let status = reqwest::get(format!("http://{}/status", host_address))
         .await?
         .text()
         .await?;

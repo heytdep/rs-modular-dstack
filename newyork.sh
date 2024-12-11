@@ -11,7 +11,8 @@ fi
 
 CLUSTER="$1"
 SECRET="$2"
-PUBKEY="${3:-}"  # this is optional
+HOST="$3"
+PUBKEY="${4:-}"  # this is optional
 
 generate_newyork_yml() {
   echo "Generating newyork.yml with CLUSTER=$CLUSTER..."
@@ -27,6 +28,8 @@ spec:
     - name: new-york-container
       image: xycloo/new-york-image:latest
       env:
+        - name: HOST
+          value: "$HOST"
         - name: CLUSTER
           value: "$CLUSTER"
 EOF
@@ -38,6 +41,9 @@ EOF
   cat <<EOF >> newyork.yml
     - name: ping-host-container
       image: xycloo/ping-host-image:latest
+      env:
+        - name: HOST
+          value: "$HOST"
   hostNetwork: true
 EOF
 
