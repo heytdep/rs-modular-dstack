@@ -1,0 +1,8 @@
+[package]
+name = "tdx-attest-sys"
+
+[dependencies]
+
+[build-dependencies]
+bindgen = "0.70.1"
+cc = "1.2.2"

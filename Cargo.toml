@@ -4,7 +4,8 @@ resolver = "2"
 members = [ "crates/dcap-quotes", "crates/diffie-hellman", "crates/dummy-attestation",
     "dstack-core", 
     "examples/ping-host", 
-    "new-york", "contracts/stellar/simple-cluster", 
+    "new-york", "contracts/stellar/simple-cluster", "crates/tdx-attestation",
+    "crates/attestation-driver/tdx-attest", "crates/attestation-driver/tdx-attest-sys", "crates/attestation-driver/cc-eventlog"
 #    "services/stellar/zephyr"
 ]
 
@@ -25,3 +26,11 @@ base64 = "0.22.1"
 sha2 = "0.10.8"
 aes-gcm = "0.10.3"
 x25519-dalek = {version="2.0.1", features=["getrandom", "static_secrets"]}
+cc-eventlog = {path="./crates/attestation-driver/cc-eventlog"}
+tdx-attest-sys = {path="./crates/attestation-driver/tdx-attest-sys"}
+tdx-attest = {path="./crates/attestation-driver/tdx-attest"}
+thiserror = "2.0.4"
+fs-err = "3.0.0"
+scale = { version = "3.6.12", package = "parity-scale-codec", features = ["derive"] }
+serde-human-bytes = "0.1.0"
+insta = "1.41.1"

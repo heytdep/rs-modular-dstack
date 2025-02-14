@@ -1,0 +1,17 @@
+[package]
+name = "cc-eventlog"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+fs-err = { workspace = true }
+hex = { workspace = true }
+scale = { workspace = true }
+serde = { workspace = true }
+serde-human-bytes = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+insta = { workspace = true }

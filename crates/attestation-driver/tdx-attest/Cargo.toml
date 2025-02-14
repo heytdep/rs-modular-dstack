@@ -1,0 +1,22 @@
+[package]
+name = "tdx-attest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+num_enum = "0.7.3"
+scale            = { workspace = true }
+serde-human-bytes = { workspace = true }
+fs-err           = { workspace = true }
+anyhow           = { workspace = true }
+hex              = { workspace = true }
+serde            = { workspace = true }
+serde_json       = { workspace = true }
+tdx-attest-sys   = { workspace = true }
+cc-eventlog      = { workspace = true }
+sha2             = { workspace = true }
+thiserror        = { workspace = true }
+
+[dev-dependencies]
+insta            = { workspace = true }
+serde_json       = { workspace = true }
