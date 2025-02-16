@@ -15,6 +15,7 @@ exclude = ["services/stellar/zephyr"]
 dstack-core = {path="./dstack-core"}
 dcap-quotes = {path="./crates/dcap-quotes"}
 dummy-attestation = {path="./crates/dummy-attestation"}
+tdx-attestation = {path="./crates/tdx-attestation"}
 diffie-hellman = {path="./crates/diffie-hellman"}
 anyhow = "1.0.93"
 async-trait = "0.1.83"

@@ -10,38 +10,47 @@ use warp::Filter;
 
 #[tokio::main]
 async fn main() {
+    // NB: depending on what your requirements around measurements are you might need to hardcode these as build vars.
     let cluster_string = env::var("CLUSTER").unwrap();
+    let maybe_expected_shared_pubkey = env::var("PUBKEY");
+    
     let cluster_contract = stellar_strkey::Contract::from_string(&cluster_string)
         .unwrap()
         .0;
 
-    let mut guest_internal_replication = GuestServices::new(cluster_contract);
-    let mut with_shared_secret = GuestServices::new(cluster_contract);
+    let mut guest_internal = GuestServices::new(cluster_contract);
 
     // if operator infers PUBKEY then we want to join an already-bootstrapped cluster.
     // else we want to be bootstrapping the cluster ourselves (replay protection should be onchain).
-    if let Ok(expected_shared_pubkey) = env::var("PUBKEY") {
+    if let Ok(expected_shared_pubkey) = maybe_expected_shared_pubkey {
         let bytes = hex::decode(expected_shared_pubkey)
             .unwrap()
             .try_into()
             .unwrap();
-        guest_internal_replication.set_expected_public(bytes);
-        with_shared_secret.set_expected_public(bytes);
+
+        guest_internal.set_expected_public(bytes).await;
     }
 
-    let threadsafe = Arc::new(guest_internal_replication);
-    let secret = threadsafe.replicate_thread().await;
+    let threadsafe = Arc::new(guest_internal);
+    let replication_reference = threadsafe.clone();
+    
+    let handle_replication = tokio::spawn(async move {
+        replication_reference.replicate_thread().await
+    });
 
-    with_shared_secret.set_secret(secret.unwrap());
-    let threadsafe = Arc::new(with_shared_secret);
     let guest_paths: guest_paths::GuestPaths<GuestServices> =
         guest_paths::GuestPaths::new(threadsafe);
 
     let _ = tokio::join!(
-        warp::serve(guest_paths.onboard_new_node().or(guest_paths.status()))
+        handle_replication,
+        warp::serve(
+            guest_paths.onboard_new_node()
+            .or(guest_paths.status())
+            // NB: this endpoint is sensitive since it allows anyone who can reach it to construct a valid shared key. 
+            // It's important the implementor makes sure that this connection is only available within the deployed pod. 
+            // This allows for the quote to hold the measurements of the expected pod config and prevents new pods or 
+            // the host environment to retrieve the shared secret.
+            .or(guest_paths.get_derived_key()))
             .run(([0, 0, 0, 0], 3030)),
-        // Note: this is currently unsafe, this microservice should probably only run within
-        // the podman container and fed with the shared secret as environment variable.
-        warp::serve(guest_paths.get_derived_key()).run(([127, 0, 0, 1], 3031))
     );
 }

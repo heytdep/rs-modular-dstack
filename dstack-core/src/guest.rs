@@ -21,9 +21,9 @@ pub trait GuestServiceInner: TdxOnlyGuestServiceInner {
     type Quote: Send + Sync + DeserializeOwned;
     type SharedKey;
 
-    fn get_secret(&self) -> anyhow::Result<Self::SharedKey>;
+    async fn get_secret(&self) -> anyhow::Result<Self::SharedKey>;
 
-    async fn replicate_thread(&self) -> anyhow::Result<Self::SharedKey>;
+    async fn replicate_thread(&self) -> anyhow::Result<()>;
 
     async fn onboard_new_node(
         &self,

@@ -17,7 +17,7 @@ use dummy_attestation::Attestation;
 use sha2::{Digest, Sha256};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use stellar::get_onboarded;
-use tokio::time::sleep;
+use tokio::{sync::Mutex, time::sleep};
 
 mod stellar;
 
@@ -131,8 +131,8 @@ pub struct GuestServices {
     // Implementor's configs including helper objects.
     host_endpoint: String,
     cluster_contract: [u8; 32],
-    shared_public: Option<[u8; 32]>,
-    shared_secret: Option<[u8; 32]>,
+    shared_public: Mutex<Option<[u8; 32]>>,
+    shared_secret: Mutex<Option<[u8; 32]>>,
     attestation: Attestation,
     crypto: Crypto,
 }
@@ -143,19 +143,19 @@ impl GuestServices {
         Self {
             host_endpoint: host_address,
             cluster_contract,
-            shared_public: None,
-            shared_secret: None,
+            shared_public: Mutex::new(None),
+            shared_secret: Mutex::new(None),
             attestation: Attestation::new(),
             crypto: Crypto::new(),
         }
     }
 
-    pub fn set_expected_public(&mut self, public: [u8; 32]) {
-        self.shared_public = Some(public)
+    pub async fn set_expected_public(&mut self, public: [u8; 32]) {
+        *self.shared_public.lock().await = Some(public)
     }
 
-    pub fn set_secret(&mut self, secret: [u8; 32]) {
-        self.shared_secret = Some(secret)
+    pub async fn set_secret(&mut self, secret: [u8; 32]) {
+        *self.shared_secret.lock().await = Some(secret)
     }
 }
 
@@ -168,15 +168,11 @@ impl GuestServiceInner for GuestServices {
 
     // Note: the implementor decides for themselves how they want the secret to be stored in
     // [`self`]
-    fn get_secret(&self) -> anyhow::Result<Self::SharedKey> {
-        if let Some(shared) = self.shared_secret {
-            Ok(shared)
-        } else {
-            Err(anyhow!("").into())
-        }
+    async fn get_secret(&self) -> anyhow::Result<Self::SharedKey> {
+        self.shared_secret.lock().await.ok_or(anyhow!("").into())
     }
 
-    async fn replicate_thread(&self) -> anyhow::Result<Self::SharedKey> {
+    async fn replicate_thread(&self) -> anyhow::Result<()> {
         println!("Replicating ...");
         let client = reqwest::Client::new();
 
@@ -188,7 +184,13 @@ impl GuestServiceInner for GuestServices {
         let shared_secret;
 
         // Note: whether to bootstrap is operator inferred not chain-inferred.
-        if let Some(expected_shared_pubkey_bytes) = self.shared_public {
+        let maybe_pubkey = {
+            let lock = self.shared_public.lock().await;
+            lock.clone()
+        };
+        
+        if maybe_pubkey.is_some() {
+            let expected_shared_pubkey_bytes = maybe_pubkey.unwrap();
             // We need to register
             let request_onboard = client
                 .post(format!("http://{}/register", self.host_endpoint))
@@ -249,7 +251,8 @@ impl GuestServiceInner for GuestServices {
             shared_secret = *my_secret.as_bytes();
         }
         println!("Got secret! {}", hex::encode(shared_secret));
-        Ok(shared_secret)
+        *self.shared_secret.lock().await = Some(shared_secret);
+        Ok(())
     }
 
     /// Verifies the provided quote ensuring that [`pubkeys[0]`] is within the quote, if that
@@ -277,7 +280,7 @@ impl GuestServiceInner for GuestServices {
         println!("Encrypting secret.");
         let encrypted = self.crypto.encrypt_secret(
             NONCE,
-            self.shared_secret.ok_or(anyhow!(""))?.into(),
+            self.shared_secret.lock().await.ok_or(anyhow!(""))?.into(),
             pubkeys.iter().map(|p| (*p).into()).collect(),
         )?;
         Ok(encrypted)
@@ -295,7 +298,7 @@ impl TdxOnlyGuestServiceInner for GuestServices {
         hasher.update(format!(
             "{}{}",
             tag,
-            hex::encode(self.shared_secret.ok_or(anyhow!(""))?)
+            hex::encode(self.shared_secret.lock().await.ok_or(anyhow!(""))?)
         ));
         let derived = hasher.finalize();
 
