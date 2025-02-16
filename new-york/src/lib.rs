@@ -292,6 +292,7 @@ impl GuestServiceInner for GuestServices {
 impl TdxOnlyGuestServiceInner for GuestServices {
     type Tag = String;
     type DerivedKey = String;
+    type AssociatedKey = ();
 
     async fn get_derived_key(&self, tag: Self::Tag) -> anyhow::Result<Self::DerivedKey> {
         let mut hasher = Sha256::new();
@@ -303,6 +304,11 @@ impl TdxOnlyGuestServiceInner for GuestServices {
         let derived = hasher.finalize();
 
         Ok(hex::encode(derived))
+    }
+
+    // NB: we don't use associated key functionality for this version
+    async fn get_associated_key(&self) -> anyhow::Result<Self::AssociatedKey> {
+        Ok(())
     }
 }
 

@@ -75,7 +75,7 @@ impl<H: GuestServiceInner + Send + Sync> GuestPaths<H> {
             )
     }
 
-    // Should only be callable within trusted enclaves.
+    // The endpoints below should only be callable within trusted enclaves.
     pub fn get_derived_key(
         &self,
     ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -94,6 +94,30 @@ impl<H: GuestServiceInner + Send + Sync> GuestPaths<H> {
                         Err(e) => {
                             return Ok(warp::reply::json(&serde_json::json!({
                                 "error": format!("{:?} while getting derived key in inner guest impl", e)
+                            })))
+                        }
+                    }
+                },
+            )
+    }
+
+    pub fn get_associated_key(
+        &self,
+    ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+        warp::path!("getnodekey")
+            .and(warp::get())
+            .and(with_impl(self.inner_guest.clone()))
+            .and_then(
+                |guest_impl: Arc<H>| async move {
+                    match guest_impl.get_associated_key().await {
+                        Ok(key) => {
+                            return Ok::<Json, Rejection>(warp::reply::json(
+                               &key
+                            ))
+                        }
+                        Err(e) => {
+                            return Ok(warp::reply::json(&serde_json::json!({
+                                "error": format!("{:?} while getting associated key in inner guest impl", e)
                             })))
                         }
                     }

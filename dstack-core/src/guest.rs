@@ -36,8 +36,11 @@ pub trait GuestServiceInner: TdxOnlyGuestServiceInner {
 pub trait TdxOnlyGuestServiceInner {
     type Tag: Send + Sync + DeserializeOwned;
     type DerivedKey: Send + Sync + Serialize;
+    type AssociatedKey: Send + Sync + Serialize;
 
     /// Note: tag here is not necessarily. string since we want to allow for more
     /// customizability around them e.g have structured tag objects.
     async fn get_derived_key(&self, tag: Self::Tag) -> anyhow::Result<Self::DerivedKey>;
+
+    async fn get_associated_key(&self) -> anyhow::Result<Self::AssociatedKey>;
 }
