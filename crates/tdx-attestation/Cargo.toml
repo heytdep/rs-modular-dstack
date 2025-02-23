@@ -9,5 +9,11 @@ async-trait = {workspace=true}
 anyhow = {workspace=true}
 hex = {workspace=true}
 sha2 = {workspace=true}
-tdx-attest = {path="../attestation-driver/tdx-attest"}
+tdx-attest = {path="../attestation-driver/tdx-attest", optional=true}
+tsm-client = {path="../../../rs-tsm-quote-generation/client", optional=true}
 dcap-qvl = "0.1.6"
+
+[features]
+default = ["tsm_only"]
+tsm_only = ["dep:tsm-client"]
+full_c_driver = ["dep:tdx-attest"]
