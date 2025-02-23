@@ -45,9 +45,7 @@ mod tsm_att {
                 report.get()?.out_blob
             };
 
-            let hex_quote = hex::encode(quote);
-            println!("Hex Output: {}", hex_quote);
-            
+            let hex_quote = hex::encode(quote);            
             Ok(hex_quote)
         }
 
