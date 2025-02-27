@@ -17,7 +17,8 @@ dcap-quotes = {path="./crates/dcap-quotes"}
 dummy-attestation = {path="./crates/dummy-attestation"}
 tdx-attestation = {path="./crates/tdx-attestation"}
 diffie-hellman = {path="./crates/diffie-hellman"}
-tsm-client = {path="../rs-tsm-quote-generation"}
+#tsm-client = {path="../rs-tsm-quote-generation"}
+tsm-client = {git="https://github.com/tpluslabs/rs-configfs-tsm-quoting"}
 anyhow = "1.0.93"
 async-trait = "0.1.83"
 serde = {version = "1", features=["derive"]}
